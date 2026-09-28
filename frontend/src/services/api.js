@@ -1,6 +1,8 @@
 // API Client Wrapper for WoundWise
 
-const API_BASE = '/api';
+const API_BASE = import.meta.env.VITE_API_URL
+  ? `${import.meta.env.VITE_API_URL}/api`
+  : '/api';
 
 export function getToken() {
   return localStorage.getItem('woundwise_token');
@@ -61,15 +63,15 @@ export async function request(endpoint, options = {}) {
 export function getImageUrl(filename) {
   if (!filename) return '';
   const token = getToken();
-  return `/api/records/image/${filename}${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+  return `${API_BASE}/records/image/${filename}${token ? `?token=${encodeURIComponent(token)}` : ''}`;
 }
 
 export function getDownloadImageUrl(filename) {
   const token = getToken();
-  return `/api/records/download-image/${filename}${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+  return `${API_BASE}/records/download-image/${filename}${token ? `?token=${encodeURIComponent(token)}` : ''}`;
 }
 
 export function getDownloadReportUrl(id) {
   const token = getToken();
-  return `/api/records/download-report/${id}${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+  return `${API_BASE}/records/download-report/${id}${token ? `?token=${encodeURIComponent(token)}` : ''}`;
 }
