@@ -13,6 +13,20 @@ export default function ResultPage({ resultData, onNavigate, onShowNotification 
   const [segData, setSegData] = useState(resultData?.segmentationData || null);
   const [rednessInfo, setRednessInfo] = useState(null);
   
+  // Interactive expand/collapse state for General Wound Care cards
+  const [expandedCards, setExpandedCards] = useState({
+    remedies: false,
+    precautions: false,
+    medications: false
+  });
+
+  const toggleCard = (cardKey) => {
+    setExpandedCards(prev => ({
+      ...prev,
+      [cardKey]: !prev[cardKey]
+    }));
+  };
+
   const canvasRef = useRef(null);
   const imgRef = useRef(null);
 
@@ -536,6 +550,330 @@ export default function ResultPage({ resultData, onNavigate, onShowNotification 
                 </button>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* General Wound Care Section (Positioned directly below the two panels) */}
+        <div className="general-wound-care-section" style={{ marginTop: 36, paddingTop: 28, borderTop: '1px solid var(--border)' }}>
+          <div style={{ marginBottom: 20 }}>
+            <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#0F172A', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: '22px' }}>🩹</span>
+              <span>General Wound Care</span>
+            </h2>
+            <p style={{ fontSize: '13px', color: '#64748B', marginTop: 4, lineHeight: 1.4 }}>
+              General educational guidance for minor cuts and grazes. This information is for general reference and is separate from your individual assessment findings.
+            </p>
+          </div>
+
+          {/* 3 Equal-width Feature Cards Grid */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: 20,
+            marginBottom: 20
+          }}>
+            {/* Card 1: Remedies (Green Accents) */}
+            <div style={{
+              background: '#FFFFFF',
+              borderRadius: '14px',
+              border: '1px solid #E2E8F0',
+              padding: '20px',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+              display: 'flex',
+              flexDirection: 'column',
+              justify: 'space-between'
+            }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+                  <div style={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: '12px',
+                    background: '#E8F5E9',
+                    color: '#059669',
+                    border: '1px solid #A7F3D0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="6" width="18" height="12" rx="2"/>
+                      <circle cx="12" cy="12" r="2"/>
+                      <line x1="8" y1="12" x2="8.01" y2="12"/>
+                      <line x1="16" y1="12" x2="16.01" y2="12"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Remedies</h3>
+                    <span style={{ fontSize: '11.5px', color: '#059669', fontWeight: 600 }}>First Aid &amp; Care</span>
+                  </div>
+                </div>
+
+                <p style={{ fontSize: '13px', color: '#475569', lineHeight: 1.5, marginBottom: 14 }}>
+                  General care steps for minor cuts and grazes once active bleeding has stopped:
+                </p>
+
+                <ul style={{ paddingLeft: 18, margin: 0, fontSize: '12.5px', color: '#334155', lineHeight: 1.6 }}>
+                  <li style={{ marginBottom: 6 }}>
+                    <strong>Wash hands:</strong> Clean hands thoroughly with soap and water before touching the wound area.
+                  </li>
+                  <li style={{ marginBottom: 6 }}>
+                    <strong>Gently rinse:</strong> Rinse the wound gently with clean tap water or saline to clear dirt and debris.
+                  </li>
+                  <li style={{ marginBottom: 6 }}>
+                    <strong>Apply dressing:</strong> Cover with a clean, sterile plaster or dressing; keep dry and replace when wet.
+                  </li>
+                </ul>
+
+                {expandedCards.remedies && (
+                  <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px stroke #E2E8F0', fontSize: '12px', color: '#64748B', lineHeight: 1.5 }}>
+                    <p style={{ marginBottom: 6 }}>
+                      • Avoid scrubbing the wound bed vigorously to protect new healing tissue.
+                    </p>
+                    <p style={{ marginBottom: 6 }}>
+                      • Avoid harsh chemical antiseptics like hydrogen peroxide or undiluted alcohol, which can irritate delicate skin.
+                    </p>
+                    <p>
+                      • Replace dressings daily or sooner if blood or fluid soaks through.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div style={{ marginTop: 16 }}>
+                <button
+                  type="button"
+                  onClick={() => toggleCard('remedies')}
+                  aria-expanded={expandedCards.remedies}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#059669',
+                    fontSize: '12.5px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    padding: 0,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4
+                  }}
+                >
+                  <span>{expandedCards.remedies ? 'Hide details' : 'View details'}</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: expandedCards.remedies ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Card 2: Precautions (Amber Accents) */}
+            <div style={{
+              background: '#FFFFFF',
+              borderRadius: '14px',
+              border: '1px solid #E2E8F0',
+              padding: '20px',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+              display: 'flex',
+              flexDirection: 'column',
+              justify: 'space-between'
+            }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+                  <div style={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: '12px',
+                    background: '#FEF3C7',
+                    color: '#D97706',
+                    border: '1px solid #FDE68A',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Precautions</h3>
+                    <span style={{ fontSize: '11.5px', color: '#D97706', fontWeight: 600 }}>Urgent Signs</span>
+                  </div>
+                </div>
+
+                <p style={{ fontSize: '13px', color: '#475569', lineHeight: 1.5, marginBottom: 14 }}>
+                  Key warning signs requiring prompt clinical evaluation or emergency medical attention:
+                </p>
+
+                <ul style={{ paddingLeft: 18, margin: 0, fontSize: '12.5px', color: '#334155', lineHeight: 1.6 }}>
+                  <li style={{ marginBottom: 6 }}>
+                    <strong>Infection warning signs:</strong> Watch for spreading redness, worsening pain, swelling, or fever.
+                  </li>
+                  <li style={{ marginBottom: 6 }}>
+                    <strong>Pus &amp; discharge:</strong> Yellow/green discharge or bad odor indicates infection requiring medical care.
+                  </li>
+                  <li style={{ marginBottom: 6 }}>
+                    <strong>Emergency red flags:</strong> Uncontrolled bleeding, gaping wounds, or bites require emergency care.
+                  </li>
+                </ul>
+
+                {expandedCards.precautions && (
+                  <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px stroke #E2E8F0', fontSize: '12px', color: '#64748B', lineHeight: 1.5 }}>
+                    <p style={{ marginBottom: 6 }}>
+                      • Seek A&amp;E / emergency care if bleeding continues after 10 minutes of firm direct pressure.
+                    </p>
+                    <p style={{ marginBottom: 6 }}>
+                      • Wounds caused by dirty/rusty objects or animal/human bites require urgent tetanus and antibiotic checks.
+                    </p>
+                    <p>
+                      • High-risk patients (e.g., with diabetes) should seek medical review for any non-healing foot wound.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div style={{ marginTop: 16 }}>
+                <button
+                  type="button"
+                  onClick={() => toggleCard('precautions')}
+                  aria-expanded={expandedCards.precautions}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#D97706',
+                    fontSize: '12.5px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    padding: 0,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4
+                  }}
+                >
+                  <span>{expandedCards.precautions ? 'Hide details' : 'View details'}</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: expandedCards.precautions ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Card 3: Medications (Blue Accents) */}
+            <div style={{
+              background: '#FFFFFF',
+              borderRadius: '14px',
+              border: '1px solid #E2E8F0',
+              padding: '20px',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+              display: 'flex',
+              flexDirection: 'column',
+              justify: 'space-between'
+            }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+                  <div style={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: '12px',
+                    background: '#EFF6FF',
+                    color: '#2563EB',
+                    border: '1px solid #BFDBFE',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M10.5 20.5l10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7z"/>
+                      <line x1="8.5" y1="8.5" x2="15.5" y2="15.5"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Medications</h3>
+                    <span style={{ fontSize: '11.5px', color: '#2563EB', fontWeight: 600 }}>Pain &amp; Prescriptions</span>
+                  </div>
+                </div>
+
+                <p style={{ fontSize: '13px', color: '#475569', lineHeight: 1.5, marginBottom: 14 }}>
+                  General educational information regarding pain relief and prescription safety:
+                </p>
+
+                <ul style={{ paddingLeft: 18, margin: 0, fontSize: '12.5px', color: '#334155', lineHeight: 1.6 }}>
+                  <li style={{ marginBottom: 6 }}>
+                    <strong>Over-the-counter analgesics:</strong> Simple pain relief (e.g. paracetamol/ibuprofen) can help manage discomfort.
+                  </li>
+                  <li style={{ marginBottom: 6 }}>
+                    <strong>Pharmacist check:</strong> Always consult a pharmacist or clinician to verify suitability for your health.
+                  </li>
+                  <li style={{ marginBottom: 6 }}>
+                    <strong>Antibiotics require clinical prescription:</strong> Antibiotics require clinical assessment; never self-administer.
+                  </li>
+                </ul>
+
+                {expandedCards.medications && (
+                  <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px stroke #E2E8F0', fontSize: '12px', color: '#64748B', lineHeight: 1.5 }}>
+                    <p style={{ marginBottom: 6 }}>
+                      • Never generate or take self-prescribed antibiotics without direct clinical examination.
+                    </p>
+                    <p style={{ marginBottom: 6 }}>
+                      • Always read medication patient information leaflets for safe dosages and contraindications.
+                    </p>
+                    <p>
+                      • <em>No prescriptions, dosages, or personalized medication recommendations are generated from wound photographs or image measurements.</em>
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div style={{ marginTop: 16 }}>
+                <button
+                  type="button"
+                  onClick={() => toggleCard('medications')}
+                  aria-expanded={expandedCards.medications}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#2563EB',
+                    fontSize: '12.5px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    padding: 0,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4
+                  }}
+                >
+                  <span>{expandedCards.medications ? 'Hide details' : 'View details'}</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: expandedCards.medications ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* NHS Educational Disclaimer Footer */}
+          <div style={{
+            textAlign: 'center',
+            padding: '12px 16px',
+            background: '#F8FAF9',
+            borderRadius: '10px',
+            border: '1px solid #E2E8E3',
+            fontSize: '12px',
+            color: '#64748B'
+          }}>
+            <span>
+              General information only. Follow your healthcare professional’s advice. Content reference: {' '}
+              <a 
+                href="https://www.nhs.uk/conditions/cuts-and-grazes/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                style={{ color: '#2563EB', fontWeight: 600, textDecoration: 'underline' }}
+              >
+                NHS — Cuts and grazes
+              </a>
+            </span>
           </div>
         </div>
       </section>
