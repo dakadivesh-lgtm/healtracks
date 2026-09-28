@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getImageUrl } from '../services/api';
 import WoundSegmentationEditor from '../components/WoundSegmentationEditor';
+import {
+  calculateWoundCoverage,
+  calculatePhysicalArea,
+  calculateRelativeRedness
+} from '../utils/measurementEngine';
 
 export default function ResultPage({ resultData, onNavigate, onShowNotification }) {
   const [showOverlay, setShowOverlay] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
   const [segData, setSegData] = useState(resultData?.segmentationData || null);
-  const [rednessPct, setRednessPct] = useState(null); // Explicitly separate from wound coveragePct
-  
-  const woundCoveragePct = segData?.coveragePct != null ? Number(segData.coveragePct) : (resultData?.coveragePct != null ? Number(resultData.coveragePct) : null);
-  const physicalAreaCm2 = segData?.physicalAreaCm2 != null ? Number(segData.physicalAreaCm2) : (resultData?.physicalAreaCm2 != null ? Number(resultData.physicalAreaCm2) : null);
-  const rednessEstimatePct = (rednessPct && rednessPct !== 'N/A') ? rednessPct : (resultData?.rednessEstimatePct || 'Not measured');
+  const [rednessInfo, setRednessInfo] = useState(null);
   
   const canvasRef = useRef(null);
   const imgRef = useRef(null);
@@ -30,18 +31,35 @@ export default function ResultPage({ resultData, onNavigate, onShowNotification 
   });
 
   const [isLocating, setIsLocating] = useState(false);
-  const [aiStatus, setAiStatus] = useState(null);
 
-  useEffect(() => {
-    fetch('/api/health')
-      .then(res => res.json())
-      .then(data => {
-        setAiStatus(data?.aiEnabled ? 'active' : 'fallback');
-      })
-      .catch(() => setAiStatus('fallback'));
-  }, []);
+  // Requirement 7: Swelling from user symptoms; otherwise "Not reported"
+  const hasSymptomData = Array.isArray(resultData?.symptoms);
+  const swellingSymptom = hasSymptomData
+    ? resultData.symptoms.find(s => typeof s === 'string' && s.toLowerCase().includes('swell'))
+    : null;
 
-  const isAiActive = aiStatus === 'active' || resultData?.assessment?.status === 'analyzed' || resultData?.assessmentStatus === 'analyzed';
+  const swellingLevel = resultData?.swellingLevel
+    ? resultData.swellingLevel
+    : swellingSymptom
+    ? (swellingSymptom.toLowerCase().includes('severe') ? 'Severe' : swellingSymptom.toLowerCase().includes('moderate') ? 'Moderate' : 'Mild')
+    : (hasSymptomData ? 'None' : 'Not reported');
+
+  const swellingBadgeStyle = swellingLevel === 'None'
+    ? { bg: '#E8F5E9', color: '#2E7D32', border: '#C8E6C9' }
+    : swellingLevel === 'Mild'
+    ? { bg: '#FEF3C7', color: '#D97706', border: '#FDE68A' }
+    : swellingLevel === 'Moderate'
+    ? { bg: '#FFEDD5', color: '#C76A00', border: '#FED7AA' }
+    : swellingLevel === 'Severe'
+    ? { bg: '#FEF2F2', color: '#DC2626', border: '#FECACA' }
+    : { bg: '#F1F5F9', color: '#64748B', border: '#CBD5E1' };
+
+  // Requirement 7: Healing Progress from valid comparisonService; otherwise "Baseline" or "Not enough data"
+  const isBaseline = resultData?.isBaseline === true || resultData?.hasPreviousAssessment === false;
+  const rawProgress = resultData?.healingProgress;
+  const healingProgress = isBaseline
+    ? 'Baseline'
+    : (['Improving', 'Stable', 'Worsening'].includes(rawProgress) ? rawProgress : 'Not enough data');
 
   const hasUrgent = resultData?.hasUrgentFlags || false;
   const triageLevel = (resultData?.triageLevel || resultData?.triage_level || resultData?.triage || '').toLowerCase();
@@ -89,102 +107,101 @@ export default function ResultPage({ resultData, onNavigate, onShowNotification 
     );
   };
 
-  // Swelling Level calculation (None / Mild / Moderate / Severe)
-  const validSwellingStates = ['None', 'Mild', 'Moderate', 'Severe'];
-  const rawSwelling = resultData?.swellingLevel ||
-    (resultData?.symptoms?.some(s => typeof s === 'string' && s.toLowerCase().includes('severe swelling')) ? 'Severe'
-      : resultData?.symptoms?.some(s => typeof s === 'string' && (s.toLowerCase().includes('moderate swelling') || s.toLowerCase().includes('edema'))) ? 'Moderate'
-      : resultData?.symptoms?.some(s => typeof s === 'string' && s.toLowerCase().includes('swell')) ? 'Mild'
-      : 'Mild');
-  const swellingLevel = validSwellingStates.includes(rawSwelling) ? rawSwelling : 'Mild';
-
-  const swellingBadgeStyle = swellingLevel === 'None'
-    ? { bg: '#E8F5E9', color: '#2E7D32', border: '#C8E6C9' }
-    : swellingLevel === 'Mild'
-    ? { bg: '#FEF3C7', color: '#D97706', border: '#FDE68A' }
-    : swellingLevel === 'Moderate'
-    ? { bg: '#FFEDD5', color: '#C76A00', border: '#FED7AA' }
-    : { bg: '#FEF2F2', color: '#DC2626', border: '#FECACA' };
-
-  // Healing Progress calculation (Improving / Stable / Worsening / Baseline)
-  const isBaseline = resultData?.isBaseline === true || resultData?.hasPreviousAssessment === false;
-  const rawProgress = resultData?.healingProgress || 'Improving';
-  const healingProgress = isBaseline ? 'Baseline' : (['Improving', 'Stable', 'Worsening'].includes(rawProgress) ? rawProgress : 'Improving');
-
-  // Compute redness coverage from actual pixel data sampled from the central wound region
-  const computeRedness = (img) => {
+  // Perform CIELAB relative redness analysis on image load
+  const runEngineAnalysis = (img) => {
     try {
       const off = document.createElement('canvas');
-      const maxW = 640;
+      const maxW = 1080;
       const scale = img.naturalWidth > maxW ? maxW / img.naturalWidth : 1;
       off.width = Math.round(img.naturalWidth * scale);
       off.height = Math.round(img.naturalHeight * scale);
       const ctx = off.getContext('2d');
       ctx.drawImage(img, 0, 0, off.width, off.height);
 
-      // ROI: sampled from the central wound region (center 60% rectangle)
-      const roiX = Math.round(off.width * 0.2);
-      const roiY = Math.round(off.height * 0.2);
-      const roiW = Math.round(off.width * 0.6);
-      const roiH = Math.round(off.height * 0.6);
-      const data = ctx.getImageData(roiX, roiY, roiW, roiH).data;
+      const imgData = ctx.getImageData(0, 0, off.width, off.height);
 
-      let redPixels = 0;
-      const total = roiW * roiH;
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i], g = data[i + 1], b = data[i + 2];
-        // Redness heuristic: (R - avg(G,B)) / 255 > 0.14
-        if (r > 60 && (r - (g + b) / 2) / 255 > 0.14) redPixels++;
-      }
-      const pct = (redPixels / total) * 100;
-      setRednessPct(`${pct.toFixed(1)}%`);
+      const refSkin = segData?.referenceSkinRegion || {
+        x: Math.round(off.width * 0.05),
+        y: Math.round(off.height * 0.05),
+        w: Math.round(off.width * 0.15),
+        h: Math.round(off.height * 0.15)
+      };
+
+      const res = calculateRelativeRedness({
+        imageData: imgData,
+        imageWidth: off.width,
+        imageHeight: off.height,
+        boundary: segData?.boundary || [],
+        referenceSkinRegion: refSkin,
+        isConfirmed: Boolean(segData?.isConfirmed),
+        isNoWoundConfirmed: Boolean(segData?.isNoWoundConfirmed)
+      });
+
+      setRednessInfo(res);
     } catch (e) {
-      // cross-origin block — show placeholder
-      setRednessPct('N/A');
+      setRednessInfo({
+        rednessPct: null,
+        displayText: 'Not measured (cross-origin restriction)',
+        status: 'error'
+      });
     }
   };
-
-  // Run initial segmentation heuristic if none exists
-  useEffect(() => {
-    if (!segData && imgRef.current?.complete) {
-      handleImageLoaded();
-    }
-  }, []);
 
   const handleImageLoaded = () => {
     const img = imgRef.current;
     if (!img) return;
 
-    // Compute redness from real pixel data
-    computeRedness(img);
+    runEngineAnalysis(img);
 
-    // Draw the current segmentation overlay if it exists
+    // Render canvas overlay
     const canvas = canvasRef.current;
-    if (canvas && segData) {
+    if (canvas) {
       canvas.width = img.width;
       canvas.height = img.height;
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      if (segData.roi) {
+      const scaleX = img.width / (img.naturalWidth || img.width);
+      const scaleY = img.height / (img.naturalHeight || img.height);
+
+      if (segData?.roi) {
         ctx.strokeStyle = '#F59E0B';
-        ctx.lineWidth = 4;
-        ctx.setLineDash([8, 8]);
-        ctx.strokeRect(segData.roi.x, segData.roi.y, segData.roi.w, segData.roi.h);
+        ctx.lineWidth = 3;
+        ctx.setLineDash([6, 6]);
+        ctx.strokeRect(
+          segData.roi.x * scaleX,
+          segData.roi.y * scaleY,
+          segData.roi.w * scaleX,
+          segData.roi.h * scaleY
+        );
         ctx.setLineDash([]);
       }
-      if (segData.boundary && segData.boundary.length > 0) {
+
+      if (!segData?.isNoWoundConfirmed && segData?.boundary && segData.boundary.length > 0) {
         ctx.beginPath();
-        ctx.moveTo(segData.boundary[0].x, segData.boundary[0].y);
+        ctx.moveTo(segData.boundary[0].x * scaleX, segData.boundary[0].y * scaleY);
         for (let i = 1; i < segData.boundary.length; i++) {
-          ctx.lineTo(segData.boundary[i].x, segData.boundary[i].y);
+          ctx.lineTo(segData.boundary[i].x * scaleX, segData.boundary[i].y * scaleY);
         }
         ctx.closePath();
         ctx.fillStyle = 'rgba(239, 68, 68, 0.3)';
         ctx.fill();
         ctx.strokeStyle = '#EF4444';
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 2.5;
         ctx.stroke();
+      }
+
+      if (segData?.referenceSkinRegion) {
+        ctx.strokeStyle = '#0D9488';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.strokeRect(
+          segData.referenceSkinRegion.x * scaleX,
+          segData.referenceSkinRegion.y * scaleY,
+          segData.referenceSkinRegion.w * scaleX,
+          segData.referenceSkinRegion.h * scaleY
+        );
+        ctx.setLineDash([]);
       }
     }
   };
@@ -195,18 +212,35 @@ export default function ResultPage({ resultData, onNavigate, onShowNotification 
 
   const handleSaveEditor = (newSegData) => {
     setSegData(newSegData);
-    if (newSegData?.coveragePct != null) {
-      setRednessPct(`${newSegData.coveragePct.toFixed(1)}%`);
+    if (newSegData.rednessData) {
+      setRednessInfo(newSegData.rednessData);
     }
     setShowEditor(false);
   };
+
+  // Determine measurement displays based on engine output
+  const coverageData = calculateWoundCoverage({
+    roi: segData?.roi,
+    boundary: segData?.boundary,
+    isConfirmed: Boolean(segData?.isConfirmed),
+    isNoWoundConfirmed: Boolean(segData?.isNoWoundConfirmed)
+  });
+
+  const physicalData = calculatePhysicalArea({
+    woundAreaPx: coverageData.woundAreaPx,
+    scaleLine: segData?.scaleLine,
+    isScaleConfirmed: Boolean(segData?.isScaleConfirmed),
+    isNoWoundConfirmed: Boolean(segData?.isNoWoundConfirmed)
+  });
+
+  const rednessDisplayText = segData?.rednessDisplayText || rednessInfo?.displayText || 'Not measured — confirm wound boundary';
 
   return (
     <>
       {showEditor && (
         <WoundSegmentationEditor
           imageUrl={photoUrl}
-          initialData={{ ...segData, entryId: resultData?.entryId || resultData?.entry?.id || resultData?.id }}
+          initialData={segData}
           onSave={handleSaveEditor}
           onCancel={() => setShowEditor(false)}
         />
@@ -236,415 +270,275 @@ export default function ResultPage({ resultData, onNavigate, onShowNotification 
           <div className="result-photo-card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
               <span className="result-photo-tag">VISUAL ASSESSMENT</span>
-              <button 
-                className="btn-overlay-toggle" 
-                type="button" 
-                onClick={() => setShowEditor(true)}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '6px 12px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--border)',
-                  background: 'var(--blue-light)',
-                  color: 'var(--blue)',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 20h9"/>
-                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-                </svg>
-                <span>Review Wound Boundary</span>
-              </button>
-            </div>
-
-          <h2 className="result-photo-heading">Your wound photograph</h2>
-
-          <div className="result-photo-frame" style={{ position: 'relative' }}>
-            <img 
-              ref={imgRef}
-              src={photoUrl} 
-              alt="Uploaded wound photograph" 
-              className="result-photo-img" 
-              onLoad={handleImageLoaded}
-              crossOrigin="anonymous"
-            />
-            <canvas 
-              ref={canvasRef}
-              className="result-photo-overlay" 
-              style={{ 
-                position: 'absolute', 
-                inset: 0, 
-                width: '100%', 
-                height: '100%', 
-                objectFit: 'contain',
-                display: showOverlay ? 'block' : 'none', 
-                pointerEvents: 'none' 
-              }}
-            />
-          </div>
-
-          {/* Overlay Legend */}
-          {showOverlay && (
-            <div className="overlay-legend" style={{ display: 'flex', marginTop: 10, justifyContent: 'space-between', fontSize: '11.5px', color: 'var(--text-secondary)' }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ width: 12, height: 12, background: 'rgba(59, 130, 246, 0.3)', border: '1.5px solid #2563EB', borderRadius: 2 }} />
-                Central wound region
-              </span>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ width: 12, height: 12, background: 'rgba(239, 68, 68, 0.65)', border: '1.5px solid #DC2626', borderRadius: 2 }} />
-                Measured redness pixels
-              </span>
-            </div>
-          )}
-
-          <div className="result-photo-meta">
-            <span>Image Resolution: Verified (1080px max)</span>
-            <span>Focus &amp; Lighting: Photo quality check pending</span>
-          </div>
-        </div>
-
-        {/* Right: Dark Overview Panel */}
-        <div className="result-overview-panel">
-          <h2 className="result-overview-heading">Wound overview</h2>
-
-          {/* 2 × 2 Metric Grid */}
-          <div className="result-metric-grid">
-            {/* 1. Wound size / area (Top-left) */}
-            <div className="result-metric-card">
-              <div>
-                <div className="result-metric-label">Wound size / area</div>
-                <div className="result-metric-value-num" style={{ fontSize: '20px' }}>
-                  {physicalAreaCm2 != null 
-                    ? `${physicalAreaCm2.toFixed(2)} cm²` 
-                    : (woundCoveragePct != null 
-                    ? `${woundCoveragePct.toFixed(1)}% ROI area`
-                    : 'Not measured')}
-                </div>
-              </div>
-              <div className="result-metric-subtext">Measured within selected wound boundary</div>
-            </div>
-
-            {/* 2. Estimated redness coverage (Top-right) */}
-            <div className="result-metric-card">
-              <div>
-                <div className="result-metric-label">Estimated redness coverage</div>
-                <div className="result-metric-value-num">
-                  {rednessEstimatePct}
-                </div>
-              </div>
-              <div className="result-metric-subtext">Sampled from the central wound region</div>
-            </div>
-
-            {/* 3. Swelling level (Bottom-left) */}
-            <div className="result-metric-card">
-              <div>
-                <div className="result-metric-label">Swelling level</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, marginBottom: 4 }}>
-                  <span className="result-metric-value-num" style={{ fontSize: '24px', marginBottom: 0 }}>
-                    {swellingLevel}
-                  </span>
-                  <span style={{
-                    padding: '2px 8px',
-                    borderRadius: '10px',
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    background: swellingBadgeStyle.bg,
-                    color: swellingBadgeStyle.color,
-                    border: `1px solid ${swellingBadgeStyle.border}`,
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button 
+                  className="btn-overlay-toggle" 
+                  onClick={() => setShowOverlay(!showOverlay)}
+                  style={{
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: 4
-                  }}>
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'currentColor' }} />
-                    {swellingLevel}
-                  </span>
-                </div>
-              </div>
-              <div className="result-metric-subtext">Estimated swelling around wound area</div>
-            </div>
-
-            {/* 4. Healing progress (Bottom-right) */}
-            <div className="result-metric-card">
-              <div>
-                <div className="result-metric-label">Healing progress</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, marginBottom: 4 }}>
-                  <span className="result-metric-value-num" style={{ fontSize: '24px', marginBottom: 0 }}>
-                    {healingProgress}
-                  </span>
-                  {healingProgress === 'Improving' && (
-                    <span style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      width: 22,
-                      height: 22,
-                      borderRadius: '50%',
-                      background: '#E8F5E9',
-                      color: '#2E7D32',
-                      border: '1px solid #C8E6C9'
-                    }} title="Positive trend">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="7" y1="17" x2="17" y2="7"/>
-                        <polyline points="7 7 17 7 17 17"/>
-                      </svg>
-                    </span>
-                  )}
-                  {healingProgress === 'Stable' && (
-                    <span style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      width: 22,
-                      height: 22,
-                      borderRadius: '50%',
-                      background: '#F1F5F9',
-                      color: '#64748B',
-                      border: '1px solid #CBD5E1'
-                    }} title="Stable trend">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="5" y1="12" x2="19" y2="12"/>
-                      </svg>
-                    </span>
-                  )}
-                  {healingProgress === 'Worsening' && (
-                    <span style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      width: 22,
-                      height: 22,
-                      borderRadius: '50%',
-                      background: '#FEF2F2',
-                      color: '#DC2626',
-                      border: '1px solid #FECACA'
-                    }} title="Worsening trend">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="7" y1="7" x2="17" y2="17"/>
-                        <polyline points="17 7 17 17 7 17"/>
-                      </svg>
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div className="result-metric-subtext">
-                {isBaseline ? 'No previous assessment available' : 'Compared with previous assessment'}
+                    gap: 6,
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border)',
+                    background: showOverlay ? 'var(--blue-light)' : 'var(--card-bg)',
+                    color: showOverlay ? 'var(--blue)' : 'var(--text-secondary)',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                  <span>{showOverlay ? 'Hide Overlay' : 'Show Overlay'}</span>
+                </button>
+                <button 
+                  className="btn-review-boundary" 
+                  onClick={() => setShowEditor(true)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--blue)',
+                    background: 'var(--blue-light)',
+                    color: 'var(--blue)',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 20h9"/>
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                  </svg>
+                  <span>Review Wound Boundary</span>
+                </button>
               </div>
             </div>
-          </div>
 
-          {/* Status Strip / Triage Evaluation */}
-          <div 
-            id="result-status-strip" 
-            className={`result-status-strip ${hasUrgent ? 'status-has-warnings' : 'status-no-warnings'}`}
-            style={{
-              marginTop: 18,
-              padding: '14px 16px',
-              borderRadius: '12px',
-              background: hasUrgent ? '#FEF2F2' : '#F8FAF9',
-              border: hasUrgent ? '1px solid #FECACA' : '1px solid #E2E8E3',
-              display: 'flex',
-              gap: 12,
-              alignItems: 'center'
-            }}
-          >
-            <div style={{ fontSize: '20px' }}>{hasUrgent ? '⚠️' : '✓'}</div>
-            <div className="result-status-body">
-              <div className="result-status-title" style={{ fontWeight: 600, fontSize: '13.5px', color: '#0F172A' }}>
-                {hasUrgent ? 'Warning symptoms reported.' : 'No urgent warning signs found.'}
+            <h2 className="result-photo-heading">Your wound photograph</h2>
+
+            <div className="result-photo-frame" style={{ position: 'relative' }}>
+              <img 
+                ref={imgRef}
+                src={photoUrl} 
+                alt="Uploaded wound photograph" 
+                className="result-photo-img" 
+                onLoad={handleImageLoaded}
+                crossOrigin="anonymous"
+              />
+              <canvas 
+                ref={canvasRef}
+                className="result-photo-overlay" 
+                style={{ 
+                  position: 'absolute', 
+                  inset: 0, 
+                  width: '100%', 
+                  height: '100%', 
+                  objectFit: 'contain',
+                  display: showOverlay ? 'block' : 'none', 
+                  pointerEvents: 'none' 
+                }}
+              />
+            </div>
+
+            {/* Overlay Legend */}
+            {showOverlay && (
+              <div className="overlay-legend" style={{ display: 'flex', marginTop: 10, justifyContent: 'space-between', fontSize: '11.5px', color: 'var(--text-secondary)' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 12, height: 12, border: '1.5px dashed #F59E0B', borderRadius: 2 }} />
+                  Assessment ROI
+                </span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 12, height: 12, background: 'rgba(239, 68, 68, 0.3)', border: '1.5px solid #EF4444', borderRadius: 2 }} />
+                  Confirmed Wound
+                </span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 12, height: 12, background: 'rgba(13, 148, 136, 0.2)', border: '1.5px dashed #0D9488', borderRadius: 2 }} />
+                  Skin Reference
+                </span>
               </div>
-              <div className="result-status-desc" style={{ fontSize: '12px', color: '#64748B', marginTop: 2 }}>
-                {hasUrgent 
-                  ? 'Please consult a healthcare professional promptly for evaluation.' 
-                  : 'Stay consistent with wound care and monitor progression over time.'}
-              </div>
+            )}
+
+            <div className="result-photo-meta">
+              <span>Image Resolution: Verified (1080px max)</span>
+              <span>Coordinate Space: Native Source Pixels</span>
             </div>
           </div>
 
-          {/* Government Hospital Locator CTA */}
-          {showHospitalCTA && (
-            <div className="hospital-locator-wrapper" style={{ marginTop: 14 }}>
-              <button 
-                type="button"
-                className="hospital-locator-card-btn"
-                onClick={handleFindHospital}
-                disabled={isLocating}
-                aria-label="Find a nearby government hospital"
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: '22px', flexShrink: 0 }} aria-hidden="true">🏥</div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: '14px', color: '#065F46', display: 'flex', alignItems: 'center', gap: 8 }}>
-                      {isLocating ? 'Finding nearby hospitals...' : 'Find a nearby government hospital'}
-                    </div>
-                    <div style={{ fontSize: '12.5px', color: '#047857', marginTop: 2, lineHeight: 1.35 }}>
-                      Get directions to a public health facility near you.
-                    </div>
+          {/* Right: Overview Panel */}
+          <div className="result-overview-panel">
+            <h2 className="result-overview-heading">Wound overview</h2>
+
+            {/* 2 × 2 Metric Grid */}
+            <div className="result-metric-grid">
+              {/* 1. Wound size / area (Top-left) */}
+              <div className="result-metric-card">
+                <div>
+                  <div className="result-metric-label">Wound size / area</div>
+                  <div className="result-metric-value-num" style={{ fontSize: '18px' }}>
+                    {physicalData.areaCm2 != null 
+                      ? `${physicalData.areaCm2.toFixed(2)} cm²` 
+                      : (coverageData.coveragePct != null 
+                      ? `${coverageData.coveragePct.toFixed(1)}% ROI area`
+                      : coverageData.displayText)}
                   </div>
                 </div>
-                <div style={{ fontSize: '18px', color: '#047857', fontWeight: 600, marginLeft: 12, flexShrink: 0 }} aria-hidden="true">
-                  {isLocating ? (
-                    <span className="spinner-icon" style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>⌛</span>
-                  ) : (
-                    '→'
-                  )}
+                <div className="result-metric-subtext">
+                  {physicalData.areaCm2 != null 
+                    ? 'Calibrated 2D physical area' 
+                    : (coverageData.coveragePct != null 
+                    ? coverageData.displayText 
+                    : physicalData.displayText)}
                 </div>
-              </button>
-              <div style={{ fontSize: '11px', color: '#64748B', marginTop: 6, paddingLeft: 4, lineHeight: '1.4' }}>
-                If symptoms become severe or rapidly worsen, seek emergency medical care.
+              </div>
+
+              {/* 2. Estimated redness coverage (Top-right) */}
+              <div className="result-metric-card">
+                <div>
+                  <div className="result-metric-label">Red-colour coverage (estimate)</div>
+                  <div className="result-metric-value-num" style={{ fontSize: '18px' }}>
+                    {rednessDisplayText}
+                  </div>
+                </div>
+                <div className="result-metric-subtext">
+                  CIELAB relative vs healthy skin reference
+                </div>
+              </div>
+
+              {/* 3. Swelling level (Bottom-left) */}
+              <div className="result-metric-card">
+                <div>
+                  <div className="result-metric-label">Swelling level</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, marginBottom: 4 }}>
+                    <span className="result-metric-value-num" style={{ fontSize: '20px', marginBottom: 0 }}>
+                      {swellingLevel}
+                    </span>
+                    <span style={{
+                      padding: '2px 8px',
+                      borderRadius: '10px',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      background: swellingBadgeStyle.bg,
+                      color: swellingBadgeStyle.color,
+                      border: `1px solid ${swellingBadgeStyle.border}`,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4
+                    }}>
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'currentColor' }} />
+                      {swellingLevel}
+                    </span>
+                  </div>
+                </div>
+                <div className="result-metric-subtext">Reported in symptom questionnaire</div>
+              </div>
+
+              {/* 4. Healing progress (Bottom-right) */}
+              <div className="result-metric-card">
+                <div>
+                  <div className="result-metric-label">Healing progress</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, marginBottom: 4 }}>
+                    <span className="result-metric-value-num" style={{ fontSize: '20px', marginBottom: 0 }}>
+                      {healingProgress}
+                    </span>
+                  </div>
+                </div>
+                <div className="result-metric-subtext">
+                  {isBaseline ? 'No previous assessment available' : 'Validated comparison result'}
+                </div>
               </div>
             </div>
-          )}
 
-          {/* Actions inside panel */}
-          <div style={{ display: 'flex', gap: 10, marginTop: 24, flexWrap: 'wrap' }}>
-            <button 
-              className="btn-primary" 
-              style={{ flex: 1, background: '#153C2E', color: '#FFFFFF', fontWeight: 700 }}
-              onClick={() => onNavigate('history', { woundId: resultData?.woundId })}
+            {/* Status Strip / Triage Evaluation */}
+            <div 
+              id="result-status-strip" 
+              className={`result-status-strip ${hasUrgent ? 'status-has-warnings' : 'status-no-warnings'}`}
+              style={{
+                marginTop: 18,
+                padding: '14px 16px',
+                borderRadius: '12px',
+                background: hasUrgent ? '#FEF2F2' : '#F8FAF9',
+                border: hasUrgent ? '1px solid #FECACA' : '1px solid #E2E8E3',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 12
+              }}
             >
-              View in History Tracker
-            </button>
-            <button 
-              className="btn-outline" 
-              style={{ flex: 1, background: '#FFFFFF', borderColor: '#CBD5E1', color: '#0F172A', fontWeight: 600 }}
-              onClick={() => onNavigate('records')}
-            >
-              My Records
-            </button>
-          </div>
-        </div>
-      </div>
-      </section>
-
-      {/* Measurements Need To Be Taken Section */}
-      <section className="measurements-guidance-section" style={{ marginTop: 28 }}>
-        <div style={{
-          background: '#FFFFFF',
-          border: '1px solid #E2E8E3',
-          borderRadius: '20px',
-          padding: '28px',
-          boxShadow: '0 4px 20px rgba(20, 50, 30, 0.05)'
-        }}>
-          <h2 style={{
-            fontSize: '20px',
-            fontWeight: 700,
-            color: '#153C2E',
-            marginBottom: '20px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px'
-          }}>
-            <span style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: 32,
-              height: 32,
-              borderRadius: '8px',
-              background: '#E8F5E9',
-              color: '#2E7D32'
-            }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 11l3 3L22 4"/>
-                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-              </svg>
-            </span>
-            Measurements need to be taken -
-          </h2>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {/* 1) Remedies */}
-            <div style={{
-              background: '#F8FAF9',
-              border: '1px solid #E2E8E3',
-              borderRadius: '14px',
-              padding: '20px'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                <span style={{
-                  fontSize: '15px',
-                  fontWeight: 700,
-                  color: '#153C2E',
-                  background: '#E8F5E9',
-                  padding: '4px 10px',
-                  borderRadius: '6px'
-                }}>
-                  1) Remedies
-                </span>
-                <span style={{ fontSize: '12px', color: '#4A6B5D', fontWeight: 600 }}>General Care Suggestions</span>
+              <div style={{
+                width: 32,
+                height: 32,
+                borderRadius: '50%',
+                background: hasUrgent ? '#FEE2E2' : '#D1FAE5',
+                color: hasUrgent ? '#DC2626' : '#059669',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0
+              }}>
+                {hasUrgent ? (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                  </svg>
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                    <polyline points="22 4 12 14.01 9 11.01"/>
+                  </svg>
+                )}
               </div>
-              <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13.5px', color: '#334155', lineHeight: '1.6' }}>
-                <li>Keep the wound area clean, dry, and covered with an appropriate sterile dressing.</li>
-                <li>Elevate the affected limb or region periodically to support healthy blood circulation.</li>
-                <li>Change wound dressings according to standard hygienic guidelines or clinician instructions.</li>
-                <li>Maintain optimal hydration and a balanced diet rich in protein to support natural tissue recovery.</li>
-              </ul>
+              <div>
+                <h3 style={{ fontSize: '13.5px', fontWeight: 700, color: hasUrgent ? '#991B1B' : '#065F46', marginBottom: 2 }}>
+                  {hasUrgent ? 'Urgent Symptom Flags Present' : 'Symptom Triage Complete'}
+                </h3>
+                <p style={{ fontSize: '12px', color: hasUrgent ? '#7F1D1D' : '#047857', lineHeight: 1.4 }}>
+                  {hasUrgent 
+                    ? 'One or more urgent signs reported. Seek prompt professional evaluation.' 
+                    : 'No urgent triage flags recorded in questionnaire. Continue monitoring.'}
+                </p>
+              </div>
             </div>
 
-            {/* 2) Precautions */}
-            <div style={{
-              background: '#F8FAF9',
-              border: '1px solid #E2E8E3',
-              borderRadius: '14px',
-              padding: '20px'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                <span style={{
-                  fontSize: '15px',
-                  fontWeight: 700,
-                  color: '#9A3412',
-                  background: '#FFEDD5',
-                  padding: '4px 10px',
-                  borderRadius: '6px'
-                }}>
-                  2) Precautions
-                </span>
-                <span style={{ fontSize: '12px', color: '#C76A00', fontWeight: 600 }}>General Safety Instructions</span>
+            {showHospitalCTA && (
+              <div style={{ marginTop: 16 }}>
+                <button
+                  type="button"
+                  onClick={handleFindHospital}
+                  disabled={isLocating}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    borderRadius: '10px',
+                    background: '#DC2626',
+                    color: '#FFFFFF',
+                    fontWeight: 700,
+                    fontSize: '13px',
+                    border: 'none',
+                    cursor: isLocating ? 'wait' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    boxShadow: '0 2px 8px rgba(220, 38, 38, 0.25)'
+                  }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                    <circle cx="12" cy="10" r="3"/>
+                  </svg>
+                  <span>{isLocating ? 'Locating Nearby Hospital...' : 'Find Nearest Hospital'}</span>
+                </button>
               </div>
-              <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13.5px', color: '#334155', lineHeight: '1.6' }}>
-                <li>Avoid touching or picking at the wound with unwashed hands or non-sterile tools.</li>
-                <li>Do not apply unverified household chemicals, harsh soaps, or unprescribed topical solutions.</li>
-                <li>Protect the wound from friction, pressure, or immersion in standing water (e.g., pools or baths).</li>
-                <li>Monitor for systemic warning signs such as high fever, spreading redness, or severe pain.</li>
-              </ul>
-            </div>
-
-            {/* 3) Medications */}
-            <div style={{
-              background: '#F8FAF9',
-              border: '1px solid #E2E8E3',
-              borderRadius: '14px',
-              padding: '20px'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                <span style={{
-                  fontSize: '15px',
-                  fontWeight: 700,
-                  color: '#1E40AF',
-                  background: '#DBEAFE',
-                  padding: '4px 10px',
-                  borderRadius: '6px'
-                }}>
-                  3) Medications
-                </span>
-                <span style={{ fontSize: '12px', color: '#1E88E5', fontWeight: 600 }}>General Medication Guidance</span>
-              </div>
-              <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13.5px', color: '#334155', lineHeight: '1.6' }}>
-                <li>Take any prescribed antibiotics or pain management medications strictly as directed by your prescribing clinician.</li>
-                <li>Complete full therapeutic courses even if the wound visually improves ahead of schedule.</li>
-                <li>Do not self-prescribe over-the-counter systemic antibiotics without medical consultation.</li>
-                <li>Report any unexpected adverse drug reactions or allergies to your healthcare provider immediately.</li>
-              </ul>
-            </div>
+            )}
           </div>
         </div>
       </section>
-
     </>
   );
 }

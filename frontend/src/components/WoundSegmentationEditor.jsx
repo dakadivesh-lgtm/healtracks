@@ -1,16 +1,11 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { woundService } from '../services/woundService';
-
-// A simple 2D geometry helper to calculate polygon area
-function getPolygonArea(points) {
-  let area = 0;
-  for (let i = 0; i < points.length; i++) {
-    const j = (i + 1) % points.length;
-    area += points[i].x * points[j].y;
-    area -= points[j].x * points[i].y;
-  }
-  return Math.abs(area / 2);
-}
+import {
+  getPolygonArea,
+  calculateWoundCoverage,
+  calculatePhysicalArea,
+  calculateRelativeRedness
+} from '../utils/measurementEngine';
 
 // Real image quality validation using canvas pixel data
 function validateImageQuality(canvas) {
@@ -129,11 +124,19 @@ export default function WoundSegmentationEditor({ imageUrl, initialData, onSave,
   const [segConfidence, setSegConfidence] = useState('good');
   const [roi, setRoi] = useState({ x: 10, y: 10, w: 100, h: 100 });
   const [boundary, setBoundary] = useState([]);
+  const [isNoWoundConfirmed, setIsNoWoundConfirmed] = useState(Boolean(initialData?.isNoWoundConfirmed));
   
-  // Confirmed Scale Reference State (Task 10)
-  const [refObjectType, setRefObjectType] = useState('Coin'); // 'Coin', 'Ruler', 'Other'
-  const [isScaleConfirmed, setIsScaleConfirmed] = useState(false);
-  const [scaleLine, setScaleLine] = useState({ p1: { x: 0, y: 0 }, p2: { x: 0, y: 0 }, physicalLength: 2.0 });
+  // Reference Skin Region (CIELAB relative baseline)
+  const [referenceSkinRegion, setReferenceSkinRegion] = useState(
+    initialData?.referenceSkinRegion || { x: 20, y: 20, w: 60, h: 60 }
+  );
+
+  // Confirmed Scale Reference State
+  const [refObjectType, setRefObjectType] = useState('Coin');
+  const [isScaleConfirmed, setIsScaleConfirmed] = useState(Boolean(initialData?.isScaleConfirmed));
+  const [scaleLine, setScaleLine] = useState(
+    initialData?.scaleLine || { p1: { x: 0, y: 0 }, p2: { x: 0, y: 0 }, physicalLength: 2.0 }
+  );
 
   // Interaction state
   const [draggingItem, setDraggingItem] = useState(null);
@@ -161,8 +164,12 @@ export default function WoundSegmentationEditor({ imageUrl, initialData, onSave,
         setBoundary(initialData.boundary);
         if (initialData.scaleLine) {
           setScaleLine(initialData.scaleLine);
-          setIsScaleConfirmed(Boolean(initialData.isScaleConfirmed));
         }
+        if (initialData.referenceSkinRegion) {
+          setReferenceSkinRegion(initialData.referenceSkinRegion);
+        }
+        setIsScaleConfirmed(Boolean(initialData.isScaleConfirmed));
+        setIsNoWoundConfirmed(Boolean(initialData.isNoWoundConfirmed));
         setSegConfidence(initialData.segConfidence || 'good');
       } else {
         // Computer-assisted wound boundary proposal around image center
@@ -170,6 +177,15 @@ export default function WoundSegmentationEditor({ imageUrl, initialData, onSave,
         setRoi(seg.roi);
         setBoundary(seg.boundary);
         setSegConfidence(seg.segConfidence);
+
+        // Default reference skin region (top-left 10% healthy region)
+        setReferenceSkinRegion({
+          x: Math.round(offW * 0.05),
+          y: Math.round(offH * 0.05),
+          w: Math.round(offW * 0.15),
+          h: Math.round(offH * 0.15)
+        });
+
         setScaleLine({
           p1: { x: offW * 0.7, y: offH * 0.88 },
           p2: { x: offW * 0.7 + Math.round(offW * 0.15), y: offH * 0.88 },
@@ -196,13 +212,37 @@ export default function WoundSegmentationEditor({ imageUrl, initialData, onSave,
     // Draw base image
     ctx.drawImage(off, 0, 0);
 
-    // Draw ROI
+    // Draw Reference Skin Box (Teal)
+    if (referenceSkinRegion) {
+      ctx.strokeStyle = '#0D9488';
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([4, 4]);
+      ctx.strokeRect(referenceSkinRegion.x, referenceSkinRegion.y, referenceSkinRegion.w, referenceSkinRegion.h);
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(13, 148, 136, 0.2)';
+      ctx.fillRect(referenceSkinRegion.x, referenceSkinRegion.y, referenceSkinRegion.w, referenceSkinRegion.h);
+
+      ctx.fillStyle = '#0D9488';
+      ctx.font = '11px sans-serif';
+      ctx.fillText('Reference Skin', referenceSkinRegion.x + 4, referenceSkinRegion.y + 14);
+
+      // Handles
+      [{ x: referenceSkinRegion.x, y: referenceSkinRegion.y },
+       { x: referenceSkinRegion.x + referenceSkinRegion.w, y: referenceSkinRegion.y + referenceSkinRegion.h }]
+      .forEach(c => {
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, 6, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+
+    // Draw ROI (Dashed Yellow)
     ctx.strokeStyle = '#F59E0B';
     ctx.lineWidth = 3;
     ctx.setLineDash([8, 8]);
     ctx.strokeRect(roi.x, roi.y, roi.w, roi.h);
     ctx.setLineDash([]);
-    
+
     // Draw ROI handles
     ctx.fillStyle = '#F59E0B';
     const corners = [
@@ -217,15 +257,15 @@ export default function WoundSegmentationEditor({ imageUrl, initialData, onSave,
       ctx.fill();
     });
 
-    // Draw Computer-Assisted Boundary Polygon
-    if (boundary.length > 0) {
+    // Draw Wound Boundary Polygon (Red) if not explicitly set to "No Wound"
+    if (!isNoWoundConfirmed && boundary.length > 0) {
       ctx.beginPath();
       ctx.moveTo(boundary[0].x, boundary[0].y);
       for (let i = 1; i < boundary.length; i++) {
         ctx.lineTo(boundary[i].x, boundary[i].y);
       }
       ctx.closePath();
-      
+
       ctx.fillStyle = 'rgba(239, 68, 68, 0.35)';
       ctx.fill();
       ctx.strokeStyle = '#EF4444';
@@ -244,9 +284,9 @@ export default function WoundSegmentationEditor({ imageUrl, initialData, onSave,
       });
     }
 
-    // Draw Scale Reference Line
+    // Draw Scale Reference Line (Green)
     if (isScaleConfirmed) {
-      ctx.strokeStyle = '#059669'; // Emerald green when confirmed
+      ctx.strokeStyle = '#059669';
       ctx.lineWidth = 4;
       ctx.beginPath();
       ctx.moveTo(scaleLine.p1.x, scaleLine.p1.y);
@@ -264,7 +304,7 @@ export default function WoundSegmentationEditor({ imageUrl, initialData, onSave,
 
   useEffect(() => {
     draw();
-  }, [isLoaded, roi, boundary, isScaleConfirmed, scaleLine]);
+  }, [isLoaded, roi, boundary, isScaleConfirmed, scaleLine, referenceSkinRegion, isNoWoundConfirmed]);
 
   const getMousePos = (e) => {
     const rect = canvasRef.current.getBoundingClientRect();
@@ -281,6 +321,18 @@ export default function WoundSegmentationEditor({ imageUrl, initialData, onSave,
   const handleMouseDown = (e) => {
     const pos = getMousePos(e);
 
+    // Check Reference Skin handles
+    if (referenceSkinRegion) {
+      if (Math.hypot(pos.x - (referenceSkinRegion.x + referenceSkinRegion.w), pos.y - (referenceSkinRegion.y + referenceSkinRegion.h)) < HIT_RADIUS) {
+        setDraggingItem({ type: 'refSkin', corner: 'br' });
+        return;
+      }
+      if (Math.hypot(pos.x - referenceSkinRegion.x, pos.y - referenceSkinRegion.y) < HIT_RADIUS) {
+        setDraggingItem({ type: 'refSkin', corner: 'tl' });
+        return;
+      }
+    }
+
     // Check scale marker points
     if (isScaleConfirmed) {
       if (Math.hypot(pos.x - scaleLine.p1.x, pos.y - scaleLine.p1.y) < HIT_RADIUS) {
@@ -293,11 +345,13 @@ export default function WoundSegmentationEditor({ imageUrl, initialData, onSave,
       }
     }
 
-    // Check boundary vertices
-    for (let i = 0; i < boundary.length; i++) {
-      if (Math.hypot(pos.x - boundary[i].x, pos.y - boundary[i].y) < HIT_RADIUS) {
-        setDraggingItem({ type: 'boundary', index: i });
-        return;
+    // Check boundary vertices (if wound present)
+    if (!isNoWoundConfirmed) {
+      for (let i = 0; i < boundary.length; i++) {
+        if (Math.hypot(pos.x - boundary[i].x, pos.y - boundary[i].y) < HIT_RADIUS) {
+          setDraggingItem({ type: 'boundary', index: i });
+          return;
+        }
       }
     }
 
@@ -315,8 +369,8 @@ export default function WoundSegmentationEditor({ imageUrl, initialData, onSave,
       }
     }
 
-    // Tap-to-seed: User tapped photo to generate boundary around tapped point!
-    if (offscreenRef.current) {
+    // Tap-to-seed boundary around tapped point
+    if (!isNoWoundConfirmed && offscreenRef.current) {
       const seg = segmentWoundAroundPoint(offscreenRef.current, pos.x, pos.y);
       setRoi(seg.roi);
       setBoundary(seg.boundary);
@@ -332,6 +386,20 @@ export default function WoundSegmentationEditor({ imageUrl, initialData, onSave,
       const newBound = [...boundary];
       newBound[draggingItem.index] = pos;
       setBoundary(newBound);
+    } else if (draggingItem.type === 'refSkin') {
+      const newRef = { ...referenceSkinRegion };
+      if (draggingItem.corner === 'br') {
+        newRef.w = Math.max(20, pos.x - newRef.x);
+        newRef.h = Math.max(20, pos.y - newRef.y);
+      } else if (draggingItem.corner === 'tl') {
+        newRef.w += newRef.x - pos.x;
+        newRef.h += newRef.y - pos.y;
+        newRef.x = pos.x;
+        newRef.y = pos.y;
+        if (newRef.w < 20) newRef.w = 20;
+        if (newRef.h < 20) newRef.h = 20;
+      }
+      setReferenceSkinRegion(newRef);
     } else if (draggingItem.type === 'scale') {
       const newLine = { ...scaleLine };
       if (draggingItem.index === 1) newLine.p1 = pos;
@@ -366,42 +434,64 @@ export default function WoundSegmentationEditor({ imageUrl, initialData, onSave,
     setDraggingItem(null);
   };
 
-  // Calculations
-  const woundAreaPx = boundary.length > 2 ? getPolygonArea(boundary) : 0;
-  const roiAreaPx = roi.w * roi.h;
-  const coveragePct = roiAreaPx > 0 ? (woundAreaPx / roiAreaPx) * 100 : 0;
+  // Perform exact engine calculations
+  const coverageData = calculateWoundCoverage({
+    roi,
+    boundary,
+    isConfirmed: true,
+    isNoWoundConfirmed
+  });
 
-  // Task 10: Calculate physicalAreaCm2 ONLY when scale is explicitly confirmed
-  let physicalAreaCm2 = null;
-  if (isScaleConfirmed) {
-    const distPx = Math.hypot(scaleLine.p1.x - scaleLine.p2.x, scaleLine.p1.y - scaleLine.p2.y);
-    if (distPx > 0 && scaleLine.physicalLength > 0) {
-      const pixelsPerCm = distPx / scaleLine.physicalLength;
-      const pxPerCm2 = pixelsPerCm * pixelsPerCm;
-      physicalAreaCm2 = woundAreaPx / pxPerCm2;
-    }
+  const physicalData = calculatePhysicalArea({
+    woundAreaPx: coverageData.woundAreaPx,
+    scaleLine,
+    isScaleConfirmed,
+    isNoWoundConfirmed
+  });
+
+  let rednessData = { rednessPct: null, displayText: 'Loading...', status: 'pending' };
+  if (offscreenRef.current) {
+    const off = offscreenRef.current;
+    const ctx = off.getContext('2d');
+    const imgData = ctx.getImageData(0, 0, off.width, off.height);
+    rednessData = calculateRelativeRedness({
+      imageData: imgData,
+      imageWidth: off.width,
+      imageHeight: off.height,
+      boundary,
+      referenceSkinRegion,
+      isConfirmed: true,
+      isNoWoundConfirmed
+    });
   }
 
   const handleConfirm = async () => {
     const offW = offscreenRef.current?.width || 640;
     const offH = offscreenRef.current?.height || 480;
 
-    // Task 11: Store normalized boundary coordinates relative to source image
     const normalizedBoundary = boundary.map(pt => ({
       x: pt.x / offW,
       y: pt.y / offH
     }));
 
     const dataToSave = {
-      coveragePct,
-      coverage_pct: coveragePct,
-      physicalAreaCm2: isScaleConfirmed ? physicalAreaCm2 : null,
-      wound_area_cm2: isScaleConfirmed ? physicalAreaCm2 : null,
-      woundAreaPx,
-      wound_area_px: woundAreaPx,
+      isConfirmed: true,
+      isNoWoundConfirmed,
+      coveragePct: coverageData.coveragePct,
+      coverage_pct: coverageData.coveragePct,
+      coverageDisplayText: coverageData.displayText,
+      physicalAreaCm2: physicalData.areaCm2,
+      wound_area_cm2: physicalData.areaCm2,
+      physicalDisplayText: physicalData.displayText,
+      rednessPct: rednessData.rednessPct,
+      rednessDisplayText: rednessData.displayText,
+      rednessData,
+      woundAreaPx: coverageData.woundAreaPx,
+      wound_area_px: coverageData.woundAreaPx,
       roi,
       boundary,
       normalizedBoundary,
+      referenceSkinRegion,
       sourceImageWidth: offW,
       sourceImageHeight: offH,
       isScaleConfirmed,
@@ -409,7 +499,7 @@ export default function WoundSegmentationEditor({ imageUrl, initialData, onSave,
       scaleLine,
       quality,
       segConfidence,
-      seg_confidence: segConfidence
+      algorithmVersion: '2.0.0-cielab'
     };
 
     const entryId = initialData?.entryId || initialData?.id;
@@ -432,12 +522,29 @@ export default function WoundSegmentationEditor({ imageUrl, initialData, onSave,
       {/* Header bar */}
       <div style={{ padding: '16px 24px', background: 'var(--card-bg)', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#0F172A' }}>Computer-Assisted Wound Boundary</h2>
-          <p style={{ fontSize: '12.5px', color: '#64748B', marginTop: 2 }}>Tap photo to re-seed boundary or drag handles to refine outline.</p>
+          <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#0F172A' }}>Review &amp; Refine Wound Boundary</h2>
+          <p style={{ fontSize: '12.5px', color: '#64748B', marginTop: 2 }}>
+            Drag red handles to edit boundary. Position teal reference skin box on healthy skin.
+          </p>
         </div>
-        <div>
-          <button className="btn-outline" onClick={onCancel} style={{ marginRight: 12 }}>Cancel</button>
-          <button className="btn-primary" onClick={handleConfirm} disabled={quality.confidence === 'poor'}>Confirm Boundary &amp; Save</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button 
+            type="button"
+            className="btn-outline"
+            onClick={() => setIsNoWoundConfirmed(prev => !prev)}
+            style={{
+              borderColor: isNoWoundConfirmed ? '#DC2626' : '#CBD5E1',
+              color: isNoWoundConfirmed ? '#DC2626' : '#475569',
+              background: isNoWoundConfirmed ? '#FEF2F2' : '#FFFFFF',
+              fontWeight: 600
+            }}
+          >
+            {isNoWoundConfirmed ? '✓ "No Wound" Confirmed' : 'Mark "No Wound Visible"'}
+          </button>
+          <button className="btn-outline" onClick={onCancel}>Cancel</button>
+          <button className="btn-primary" onClick={handleConfirm} disabled={quality.confidence === 'poor'}>
+            Confirm Boundary &amp; Save
+          </button>
         </div>
       </div>
 
@@ -464,13 +571,13 @@ export default function WoundSegmentationEditor({ imageUrl, initialData, onSave,
         </div>
 
         {/* Right Controls Panel */}
-        <div style={{ width: 340, background: 'var(--card-bg)', borderLeft: '1px solid var(--border)', padding: 24, overflowY: 'auto' }}>
+        <div style={{ width: 360, background: 'var(--card-bg)', borderLeft: '1px solid var(--border)', padding: 24, overflowY: 'auto' }}>
           
           {quality.confidence === 'poor' && (
             <div style={{ padding: 14, background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 10, marginBottom: 20 }}>
               <h4 style={{ color: '#991B1B', fontWeight: 600, fontSize: 13, marginBottom: 4 }}>Quality Warning</h4>
               <p style={{ fontSize: 12, color: '#7F1D1D' }}>
-                Image issues detected: {quality.issues.join(', ')}. Please retake or adjust boundary manually.
+                Image issues detected: {quality.issues.join(', ')}. Adjust boundary manually.
               </p>
             </div>
           )}
@@ -480,18 +587,26 @@ export default function WoundSegmentationEditor({ imageUrl, initialData, onSave,
             
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 12, color: '#64748B' }}>Relative Wound Area</div>
-              <div style={{ fontSize: 24, fontWeight: 700, color: '#2563EB' }}>
-                {quality.confidence === 'poor' ? '--' : `${coveragePct.toFixed(1)}% ROI area`}
+              <div style={{ fontSize: 20, fontWeight: 700, color: '#2563EB' }}>
+                {coverageData.displayText}
               </div>
               <div style={{ fontSize: 11.5, color: '#64748B', marginTop: 2 }}>Percentage of selected assessment region</div>
             </div>
 
-            <div>
+            <div style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 12, color: '#64748B' }}>Physical Wound Area (cm²)</div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: isScaleConfirmed ? '#059669' : '#94A3B8' }}>
-                {quality.confidence === 'poor' 
-                  ? '--' 
-                  : (isScaleConfirmed && physicalAreaCm2 != null ? `${physicalAreaCm2.toFixed(2)} cm²` : 'Scale unconfirmed (cm² unavailable)')}
+              <div style={{ fontSize: 18, fontWeight: 700, color: isScaleConfirmed ? '#059669' : '#64748B' }}>
+                {physicalData.displayText}
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: 12, color: '#64748B' }}>Red-colour Coverage (Estimate)</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: '#DC2626' }}>
+                {rednessData.displayText}
+              </div>
+              <div style={{ fontSize: 11.5, color: '#64748B', marginTop: 2 }}>
+                CIELAB relative colorimetry vs healthy skin sample
               </div>
             </div>
           </div>
@@ -565,7 +680,7 @@ export default function WoundSegmentationEditor({ imageUrl, initialData, onSave,
             </div>
 
             <p style={{ fontSize: 11.5, color: '#64748B', lineHeight: 1.4 }}>
-              Tap anywhere on the photo to seed boundary around a wound point. Drag red handles to refine boundary vertices.
+              Drag red handles to adjust boundary. Drag teal dashed box onto healthy surrounding skin for relative redness comparison.
             </p>
           </div>
 

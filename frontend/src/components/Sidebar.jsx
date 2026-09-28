@@ -86,7 +86,7 @@ export default function Sidebar({ currentPage, setCurrentPage, user, mobileOpen,
             <path d="M9 12h6M12 9v6" stroke="#4A90D9" strokeWidth="2" strokeLinecap="round"/>
           </svg>
         </div>
-        <span className="brand-name">WoundWise</span>
+        <span className="brand-name">HealTracks</span>
       </div>
 
       {/* Nav list */}

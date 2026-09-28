@@ -77,12 +77,12 @@ export default function AuthPage({ onAuthSuccess, onShowNotification }) {
             </svg>
           </div>
           <span style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>
-            WoundWise
+            HealTracks
           </span>
         </div>
 
         <h2 style={{ fontSize: '18px', fontWeight: 700, textAlign: 'center', marginBottom: 6 }}>
-          {isRegister ? 'Create Patient Account' : 'Sign in to WoundWise'}
+          {isRegister ? 'Create Patient Account' : 'Sign in to HealTracks'}
         </h2>
         <p style={{ fontSize: '13px', color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 24 }}>
           {isRegister ? 'Start tracking your healing journey securely' : 'Access your private wound records and timeline'}

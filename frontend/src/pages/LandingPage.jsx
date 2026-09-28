@@ -13,7 +13,7 @@ export default function LandingPage({ onStartCheck, onNavigate, user }) {
               <path d="M9 12h6M12 9v6" stroke="#22A99A" strokeWidth="2"/>
             </svg>
             <div className="hp-brand-text">
-              <span className="hp-brand-name">WoundWise</span>
+              <span className="hp-brand-name">HealTracks</span>
               <span className="hp-brand-sub">WOUND CARE COMPANION</span>
             </div>
           </div>
