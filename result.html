@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Wound Health Result – Health Track Assessment Overview" />
+  <title>Health Track – Wound Health Result</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="result-page-bg">
+  <div class="app-shell">
+
+    <!-- ── Sidebar ── -->
+    <aside class="sidebar" role="navigation" aria-label="Main navigation">
+      <a href="index.html" class="sidebar-brand" style="text-decoration: none;">
+        <div class="brand-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="#4A90D9" opacity="0.18"/>
+            <path d="M12 6v6l4 2" stroke="#4A90D9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M9 12h6M12 9v6" stroke="#4A90D9" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <span class="brand-name">WoundWise</span>
+      </a>
+
+      <nav class="sidebar-nav">
+        <a href="dashboard.html" class="nav-item" id="nav-dashboard">
+          <span class="nav-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <rect x="3" y="3" width="8" height="8" rx="1.5" fill="#4A90D9"/>
+              <rect x="13" y="3" width="8" height="8" rx="1.5" fill="#4A90D9" opacity="0.45"/>
+              <rect x="3" y="13" width="8" height="8" rx="1.5" fill="#4A90D9" opacity="0.45"/>
+              <rect x="13" y="13" width="8" height="8" rx="1.5" fill="#4A90D9" opacity="0.45"/>
+            </svg>
+          </span>
+          <span class="nav-label">Dashboard</span>
+        </a>
+
+        <a href="upload.html" class="nav-item active" id="nav-upload" aria-current="page">
+          <span class="nav-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="#7EB4E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <polyline points="17 8 12 3 7 8" stroke="#7EB4E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <line x1="12" y1="3" x2="12" y2="15" stroke="#7EB4E8" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <span class="nav-label">Upload Wound</span>
+        </a>
+
+        <a href="#" class="nav-item" id="nav-history">
+          <span class="nav-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" stroke="#7EB4E8" stroke-width="2"/>
+              <polyline points="12 7 12 12 15 15" stroke="#7EB4E8" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <span class="nav-label">History Tracker</span>
+        </a>
+
+        <a href="#" class="nav-item" id="nav-records">
+          <span class="nav-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="#7EB4E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <polyline points="14 2 14 8 20 8" stroke="#7EB4E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <line x1="16" y1="13" x2="8" y2="13" stroke="#7EB4E8" stroke-width="2" stroke-linecap="round"/>
+              <line x1="16" y1="17" x2="8" y2="17" stroke="#7EB4E8" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <span class="nav-label">My Records</span>
+        </a>
+
+        <a href="#" class="nav-item" id="nav-help">
+          <span class="nav-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" stroke="#7EB4E8" stroke-width="2"/>
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" stroke="#7EB4E8" stroke-width="2" stroke-linecap="round"/>
+              <circle cx="12" cy="17" r="0.5" fill="#7EB4E8" stroke="#7EB4E8" stroke-width="1"/>
+            </svg>
+          </span>
+          <span class="nav-label">Help &amp; Support</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-chip">
+          <div class="user-avatar" aria-hidden="true">D</div>
+          <div class="user-info">
+            <span class="user-name">Divesh Reddy</span>
+            <span class="user-role">Patient</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ── Main Content Area ── -->
+    <main class="main-content" id="main-content" style="background: #F6F9F5;">
+
+      <!-- Top bar -->
+      <header class="topbar" style="background: #FFFFFF;">
+        <div class="topbar-left">
+          <h1 class="topbar-title">Wound Health Assessment</h1>
+        </div>
+        <div class="topbar-right">
+          <button class="topbar-btn" id="btn-notifications" aria-label="Notifications">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="#9CA3AF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="#9CA3AF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <div class="topbar-avatar" aria-label="User avatar">D</div>
+        </div>
+      </header>
+
+      <!-- Page Body Container -->
+      <section class="result-container">
+
+        <!-- Page Header -->
+        <div class="result-page-header">
+          <h1 class="result-page-title">Wound Health Result</h1>
+          <p class="result-page-subtitle">
+            <span class="completion-tick" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9"/>
+                <polyline points="9 12 11 14 15 10"/>
+              </svg>
+            </span>
+            <span id="result-timestamp-label">Assessment completed September 23, 2026 at 5:18 AM</span>
+          </p>
+        </div>
+
+        <!-- ── Main Layout: ~60% Photo Card / ~40% Results Panel ── -->
+        <div class="result-main-layout">
+
+          <!-- Left: Photo Card -->
+          <div class="result-photo-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+              <span class="result-photo-tag">VISUAL ASSESSMENT</span>
+              <button id="btn-toggle-overlay" class="btn-overlay-toggle" type="button" aria-pressed="false" aria-label="Toggle analyzed periwound redness overlay">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+                <span>Show Analyzed Region</span>
+              </button>
+            </div>
+            <h2 class="result-photo-heading">Your wound photo</h2>
+
+            <div class="result-photo-frame" style="position: relative;">
+              <img id="result-main-photo" src="" alt="Uploaded wound photograph" class="result-photo-img" />
+              <canvas id="result-overlay-canvas" class="result-photo-overlay" style="display: none;"></canvas>
+            </div>
+
+            <!-- Optional overlay legend -->
+            <div id="overlay-legend-bar" class="overlay-legend" style="display: none; margin-top: 10px; justify-content: space-between;">
+              <span style="display: inline-flex; align-items: center; gap: 6px;">
+                <span style="width: 12px; height: 12px; background: rgba(59, 130, 246, 0.3); border: 1.5px solid #2563EB; border-radius: 2px;"></span>
+                Surrounding periwound skin zone
+              </span>
+              <span style="display: inline-flex; align-items: center; gap: 6px;">
+                <span style="width: 12px; height: 12px; background: rgba(239, 68, 68, 0.65); border: 1.5px solid #DC2626; border-radius: 2px;"></span>
+                Measured redness pixels
+              </span>
+            </div>
+
+            <div class="result-photo-meta">
+              <span id="photo-dimensions-label">Image: 1080 × 605 px</span>
+              <span id="photo-clarity-label">Focus &amp; Lighting: Verified</span>
+            </div>
+          </div>
+
+          <!-- Right: Dark Green Panel with 4 Cards & Status Strip -->
+          <div class="result-overview-panel">
+            <h2 class="result-overview-heading">Wound overview</h2>
+
+            <!-- 2 × 2 Metric Grid -->
+            <div class="result-metric-grid">
+
+              <!-- 1. Top-Left: Wound type -->
+              <div class="result-metric-card">
+                <div>
+                  <div class="result-metric-label">Wound type</div>
+                  <div class="result-metric-value-text" id="metric-wound-type">Unable to determine</div>
+                </div>
+                <div class="result-metric-subtext">Visual screening only · Clinical examination needed</div>
+              </div>
+
+              <!-- 2. Top-Right: Wound size / area -->
+              <div class="result-metric-card">
+                <div>
+                  <div class="result-metric-label">Wound size / area</div>
+                  <div class="result-metric-value-text" id="metric-wound-size">Unable to measure — size reference required</div>
+                </div>
+                <div class="result-metric-subtext">Physical scale reference required · Formula: cm² = pixels ÷ (pixels/cm)²</div>
+              </div>
+
+              <!-- 3. Bottom-Left: Infection assessment -->
+              <div class="result-metric-card">
+                <div>
+                  <div class="result-metric-label">Estimated infection likelihood</div>
+                  <div class="result-metric-value-text" id="metric-infection-risk">Cannot determine from this assessment</div>
+                </div>
+                <div class="result-metric-subtext">No validated infection model · Clinical evaluation required</div>
+              </div>
+
+              <!-- 4. Bottom-Right: Redness coverage -->
+              <div class="result-metric-card">
+                <div>
+                  <div class="result-metric-label">Estimated redness coverage</div>
+                  <div class="result-metric-value-num" id="metric-redness-pct">--%</div>
+                </div>
+                <div class="result-metric-subtext" id="metric-redness-subtext">Measured across surrounding periwound skin · Not an infection indicator</div>
+              </div>
+
+            </div>
+
+            <!-- Status Strip Below Grid -->
+            <div id="result-status-strip" class="result-status-strip status-no-warnings" role="status" aria-live="polite">
+              <div class="result-status-icon" id="status-icon-container">
+                <!-- Injected dynamically -->
+              </div>
+              <div class="result-status-body">
+                <div class="result-status-title" id="status-title-text">No listed warning signs reported.</div>
+                <div class="result-status-desc" id="status-desc-text">This does not rule out a wound problem or guarantee healing.</div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- Evidence-Based Measurement Transparency Panel -->
+        <section class="result-evidence-panel" aria-labelledby="evidence-heading">
+          <div class="evidence-header">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#153C2E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <path d="M9 12l2 2 4-4"/>
+            </svg>
+            <h2 id="evidence-heading" class="evidence-title">Measurement Evidence &amp; System Capabilities</h2>
+          </div>
+
+          <div class="evidence-grid">
+            <div class="evidence-item">
+              <span class="evidence-label">Size &amp; Area Metric</span>
+              <span class="evidence-status status-uncalibrated">Calibration Required</span>
+              <p class="evidence-desc">
+                Physical area requires a coplanar reference marker: <code>area = mask_pixels ÷ (pixels/cm)²</code>. Without a calibrated reference, 2D pixels cannot yield physical cm².
+              </p>
+            </div>
+
+            <div class="evidence-item">
+              <span class="evidence-label">Redness Coverage</span>
+              <span class="evidence-status status-estimated" id="evidence-redness-status">Periwound Analysis Active</span>
+              <p class="evidence-desc" id="evidence-redness-desc">
+                Calculated as: <code>redness pixels ÷ valid skin pixels × 100</code> within the surrounding periwound boundary. Toggle the overlay to view measured skin pixels.
+              </p>
+            </div>
+
+            <div class="evidence-item">
+              <span class="evidence-label">Infection Assessment</span>
+              <span class="evidence-status status-unavailable">Model Unavailable</span>
+              <p class="evidence-desc">
+                No clinically validated wound-infection model is installed. Medical ethics forbid substituting redness or classifier confidence for infection diagnosis.
+              </p>
+            </div>
+
+            <div class="evidence-item">
+              <span class="evidence-label">Provenance &amp; Audit</span>
+              <span class="evidence-status status-audit" id="audit-status-badge">Standardized Optical Capture v2.4</span>
+              <p class="evidence-desc" id="audit-provenance-text">
+                Linked to captured image at 70% JPEG quality. Unreliable and unverified medical placeholders have been disabled.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Action Bar: Review symptoms & Start a new assessment -->
+        <div class="result-action-bar">
+          <a href="symptoms.html" class="btn-result-action btn-result-action--outline" id="btn-review-symptoms">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+            Review symptoms
+          </a>
+          <a href="upload.html" class="btn-result-action btn-result-action--primary" id="btn-new-assessment">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 5v14M5 12h14"/>
+            </svg>
+            Start a new assessment
+          </a>
+        </div>
+
+      </section>
+    </main>
+  </div>
+
+  <script src="result.js"></script>
+</body>
+</html>

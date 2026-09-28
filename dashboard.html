@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="WoundWise – Track and monitor your wound healing journey with personalized insights and history." />
+  <title>WoundWise – Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+
+    <!-- ── Sidebar ── -->
+    <aside class="sidebar" role="navigation" aria-label="Main navigation">
+      <a href="index.html" class="sidebar-brand" style="text-decoration: none;">
+        <div class="brand-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="#4A90D9" opacity="0.18"/>
+            <path d="M12 6v6l4 2" stroke="#4A90D9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M9 12h6M12 9v6" stroke="#4A90D9" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <span class="brand-name">WoundWise</span>
+      </a>
+
+      <nav class="sidebar-nav">
+        <a href="dashboard.html" class="nav-item active" id="nav-dashboard" aria-current="page">
+          <span class="nav-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <rect x="3" y="3" width="8" height="8" rx="1.5" fill="#4A90D9"/>
+              <rect x="13" y="3" width="8" height="8" rx="1.5" fill="#4A90D9" opacity="0.45"/>
+              <rect x="3" y="13" width="8" height="8" rx="1.5" fill="#4A90D9" opacity="0.45"/>
+              <rect x="13" y="13" width="8" height="8" rx="1.5" fill="#4A90D9" opacity="0.45"/>
+            </svg>
+          </span>
+          <span class="nav-label">Dashboard</span>
+        </a>
+
+        <a href="upload.html" class="nav-item" id="nav-upload">
+          <span class="nav-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="#7EB4E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <polyline points="17 8 12 3 7 8" stroke="#7EB4E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <line x1="12" y1="3" x2="12" y2="15" stroke="#7EB4E8" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <span class="nav-label">Upload Wound</span>
+        </a>
+
+        <a href="#" class="nav-item" id="nav-history">
+          <span class="nav-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" stroke="#7EB4E8" stroke-width="2"/>
+              <polyline points="12 7 12 12 15 15" stroke="#7EB4E8" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <span class="nav-label">History Tracker</span>
+        </a>
+
+        <a href="#" class="nav-item" id="nav-records">
+          <span class="nav-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="#7EB4E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <polyline points="14 2 14 8 20 8" stroke="#7EB4E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <line x1="16" y1="13" x2="8" y2="13" stroke="#7EB4E8" stroke-width="2" stroke-linecap="round"/>
+              <line x1="16" y1="17" x2="8" y2="17" stroke="#7EB4E8" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <span class="nav-label">My Records</span>
+        </a>
+
+        <a href="#" class="nav-item" id="nav-help">
+          <span class="nav-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" stroke="#7EB4E8" stroke-width="2"/>
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" stroke="#7EB4E8" stroke-width="2" stroke-linecap="round"/>
+              <circle cx="12" cy="17" r="0.5" fill="#7EB4E8" stroke="#7EB4E8" stroke-width="1"/>
+            </svg>
+          </span>
+          <span class="nav-label">Help &amp; Support</span>
+        </a>
+
+        <a href="#" class="nav-item" id="nav-settings">
+          <span class="nav-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="12" cy="12" r="3" stroke="#7EB4E8" stroke-width="2"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="#7EB4E8" stroke-width="2"/>
+            </svg>
+          </span>
+          <span class="nav-label">Settings</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-chip">
+          <div class="user-avatar" aria-hidden="true">D</div>
+          <div class="user-info">
+            <span class="user-name">Divesh Reddy</span>
+            <span class="user-role">Patient</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ── Main ── -->
+    <main class="main-content" id="main-content">
+
+      <!-- Top bar -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 class="topbar-title">Dashboard</h1>
+        </div>
+        <div class="topbar-right">
+          <button class="topbar-btn" id="btn-notifications" aria-label="Notifications">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="#9CA3AF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="#9CA3AF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <div class="topbar-avatar" aria-label="User avatar">D</div>
+        </div>
+      </header>
+
+      <!-- Page body -->
+      <section class="page-body">
+
+        <!-- Greeting -->
+        <div class="greeting-block">
+          <h2 class="greeting-title">Good evening, Divesh 👋</h2>
+          <p class="greeting-sub">Your wound healing journey is important. Stay consistent, stay healthy.</p>
+        </div>
+
+        <!-- No Tests card -->
+        <div class="no-tests-wrapper">
+          <div class="no-tests-card" role="status" aria-label="No tests available">
+            <div class="no-tests-icon" aria-hidden="true">
+              <svg width="52" height="52" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" fill="#EBF3FC"/>
+                <path d="M9 12h6M12 9v6" stroke="#4A90D9" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <h3 class="no-tests-title">No Tests</h3>
+            <p class="no-tests-desc">You have no wound assessments yet.<br/>Upload your first wound image to get started.</p>
+            <a href="upload.html" class="btn-primary" id="btn-start-upload">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <polyline points="17 8 12 3 7 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              Upload Wound Image
+            </a>
+          </div>
+        </div>
+
+        <!-- 2×2 Quick-action grid -->
+        <div class="quick-grid" role="list" aria-label="Quick actions">
+
+          <a href="upload.html" class="quick-card" id="qcard-upload" role="listitem">
+            <div class="qcard-icon qcard-icon--blue" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="#4A90D9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <polyline points="17 8 12 3 7 8" stroke="#4A90D9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <line x1="12" y1="3" x2="12" y2="15" stroke="#4A90D9" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div class="qcard-body">
+              <h4 class="qcard-title">Upload Wound</h4>
+              <p class="qcard-desc">Capture or upload a photo of your wound for AI-powered analysis.</p>
+            </div>
+            <div class="qcard-arrow" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M9 18l6-6-6-6" stroke="#CBD5E1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </a>
+
+          <a href="#" class="quick-card" id="qcard-history" role="listitem">
+            <div class="qcard-icon qcard-icon--teal" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="9" stroke="#38B2AC" stroke-width="2"/>
+                <polyline points="12 7 12 12 15 15" stroke="#38B2AC" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div class="qcard-body">
+              <h4 class="qcard-title">History Tracker</h4>
+              <p class="qcard-desc">Review your past assessments and monitor healing progress over time.</p>
+            </div>
+            <div class="qcard-arrow" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M9 18l6-6-6-6" stroke="#CBD5E1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </a>
+
+          <a href="#" class="quick-card" id="qcard-records" role="listitem">
+            <div class="qcard-icon qcard-icon--purple" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="#7C3AED" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <polyline points="14 2 14 8 20 8" stroke="#7C3AED" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <line x1="16" y1="13" x2="8" y2="13" stroke="#7C3AED" stroke-width="2" stroke-linecap="round"/>
+                <line x1="16" y1="17" x2="8" y2="17" stroke="#7C3AED" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div class="qcard-body">
+              <h4 class="qcard-title">My Records</h4>
+              <p class="qcard-desc">Access your full medical records, reports, and wound documentation.</p>
+            </div>
+            <div class="qcard-arrow" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M9 18l6-6-6-6" stroke="#CBD5E1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </a>
+
+          <a href="#" class="quick-card" id="qcard-help" role="listitem">
+            <div class="qcard-icon qcard-icon--orange" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="9" stroke="#F59E0B" stroke-width="2"/>
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" stroke="#F59E0B" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="12" cy="17" r="0.5" fill="#F59E0B" stroke="#F59E0B" stroke-width="1"/>
+              </svg>
+            </div>
+            <div class="qcard-body">
+              <h4 class="qcard-title">Help &amp; Support</h4>
+              <p class="qcard-desc">Get answers, contact support, or browse the help centre resources.</p>
+            </div>
+            <div class="qcard-arrow" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M9 18l6-6-6-6" stroke="#CBD5E1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </a>
+
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="WoundWise – Track your wound. Follow your progress.">
+  <title>WoundWise – Wound Care Companion</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="homepage-body">
+  
+  <!-- Floating Navbar -->
+  <nav class="hp-nav">
+    <div class="hp-nav-container">
+      <a href="index.html" class="hp-brand">
+        <svg class="hp-logo-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="#22A99A" opacity="0.18"/>
+          <path d="M12 6v6l4 2" stroke="#22A99A" stroke-width="2"/>
+          <path d="M9 12h6M12 9v6" stroke="#22A99A" stroke-width="2"/>
+        </svg>
+        <div class="hp-brand-text">
+          <span class="hp-brand-name">WoundWise</span>
+          <span class="hp-brand-sub">WOUND CARE COMPANION</span>
+        </div>
+      </a>
+      
+      <div class="hp-nav-links">
+        <a href="#how-it-works">How It Works</a>
+        <a href="#features">Features</a>
+        <a href="#safety">Safety & Privacy</a>
+        <a href="dashboard.html">Dashboard</a>
+      </div>
+
+      <div class="hp-nav-actions">
+        <a href="dashboard.html" class="hp-btn-primary">Start Wound Check</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <header class="hp-hero">
+    <div class="hp-hero-bg" style="background-image: url('hero-bg.jpg');"></div>
+    <div class="hp-hero-content">
+      <div class="hp-hero-text">
+        <h1 class="hp-hero-title">
+          Track your wound.<br>
+          <span class="hp-text-accent">Follow your progress.</span>
+        </h1>
+        <p class="hp-hero-desc">Record wound photos and symptoms, compare changes over time, and review warning signs that may need medical attention.</p>
+        
+        <div class="hp-hero-actions">
+          <a href="dashboard.html" class="hp-btn-primary hp-btn-lg">Start Wound Check ➔</a>
+          <a href="#how-it-works" class="hp-btn-secondary hp-btn-lg">How It Works</a>
+        </div>
+        
+        <p class="hp-hero-note">A wound-monitoring prototype. It does not diagnose conditions or replace professional medical care.</p>
+      </div>
+    </div>
+  </header>
+
+  <!-- How It Works Section -->
+  <section id="how-it-works" class="hp-section hp-bg-light">
+    <div class="hp-container">
+      <h2 class="hp-section-title">How It Works</h2>
+      <div class="hp-grid-3">
+        <div class="hp-card">
+          <div class="hp-card-icon">1</div>
+          <h3 class="hp-card-title">Start a check</h3>
+          <p class="hp-card-text">Follow the guided photo and symptom workflow to securely capture your wound's current state.</p>
+        </div>
+        <div class="hp-card">
+          <div class="hp-card-icon">2</div>
+          <h3 class="hp-card-title">Review your record</h3>
+          <p class="hp-card-text">See the detailed information recorded during your check for your own personal documentation.</p>
+        </div>
+        <div class="hp-card">
+          <div class="hp-card-icon">3</div>
+          <h3 class="hp-card-title">Follow your progress</h3>
+          <p class="hp-card-text">Compare saved photos and symptom history over time to track your unique healing journey.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section id="features" class="hp-section">
+    <div class="hp-container">
+      <h2 class="hp-section-title">Features</h2>
+      <div class="hp-grid-2">
+        <div class="hp-feature-row">
+          <svg class="hp-check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          <span class="hp-feature-text">Guided photo upload</span>
+        </div>
+        <div class="hp-feature-row">
+          <svg class="hp-check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          <span class="hp-feature-text">Wound history tracking</span>
+        </div>
+        <div class="hp-feature-row">
+          <svg class="hp-check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          <span class="hp-feature-text">Symptom recording <span style="color:#666; font-size: 0.85em; font-weight: normal;">(Planned)</span></span>
+        </div>
+        <div class="hp-feature-row">
+          <svg class="hp-check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          <span class="hp-feature-text">Follow-up comparisons <span style="color:#666; font-size: 0.85em; font-weight: normal;">(Illustrative sample)</span></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Safety & Privacy Section -->
+  <section id="safety" class="hp-section hp-bg-light">
+    <div class="hp-container" style="max-width: 800px;">
+      <h2 class="hp-section-title">Safety & Privacy</h2>
+      <div class="hp-text-content">
+        <p>WoundWise is a prototype application designed to help users document their wound healing process. <strong>It is not a medical device.</strong> It cannot diagnose conditions, suggest treatments, or determine if a wound is infected.</p>
+        <p>Any photographs or data you upload are stored securely for your personal reference. We preserve your existing clinical logic and do not use your personal images to train AI models without consent. You have the ability to delete your records at any time. Always consult a healthcare professional for medical advice.</p>
+      </div>
+      
+      <div style="text-align: center; margin-top: 48px;">
+        <a href="dashboard.html" class="hp-btn-primary hp-btn-lg">Start your first wound check</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="hp-footer">
+    <div class="hp-container">
+      <div class="hp-footer-content">
+        <div class="hp-footer-logo">
+          <span class="hp-brand-name">WoundWise</span>
+        </div>
+        <p>&copy; 2026 WoundWise Prototype. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
