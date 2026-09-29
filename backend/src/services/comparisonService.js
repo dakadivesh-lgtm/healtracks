@@ -54,6 +54,29 @@ const comparisonService = {
       };
     }
 
+    const currCov = currentEntry.coverage_pct != null ? Number(currentEntry.coverage_pct) : null;
+    const baseCov = baselineEntry.coverage_pct != null ? Number(baselineEntry.coverage_pct) : null;
+
+    if (currCov != null && baseCov != null && baseCov > 0) {
+      const reductionPct = ((baseCov - currCov) / baseCov) * 100;
+      const absPct = Math.abs(Number(reductionPct.toFixed(1)));
+
+      const formattedText = reductionPct > 0
+        ? `Wound coverage decreased by ${absPct}%`
+        : (reductionPct < 0 ? `Wound coverage increased by ${absPct}%` : 'Wound coverage unchanged');
+
+      return {
+        hasComparison: true,
+        measurementType: 'coverage_pct',
+        currentValue: `${currCov.toFixed(1)}%`,
+        baselineValue: `${baseCov.toFixed(1)}%`,
+        reductionPct: Number(reductionPct.toFixed(1)),
+        changePct: Number((-reductionPct).toFixed(1)),
+        formattedText,
+        label: 'coverage percentage'
+      };
+    }
+
     return {
       hasComparison: false,
       measurementType: 'unavailable',
@@ -156,11 +179,11 @@ const comparisonService = {
 
     const baseAreaStr = baselineEntry.wound_area_cm2 != null 
       ? `${Number(baselineEntry.wound_area_cm2).toFixed(2)} cm²` 
-      : 'Physical size unavailable';
+      : (baselineEntry.coverage_pct != null ? `${Number(baselineEntry.coverage_pct).toFixed(1)}%` : 'Physical size unavailable');
 
     const currAreaStr = currentEntry.wound_area_cm2 != null 
       ? `${Number(currentEntry.wound_area_cm2).toFixed(2)} cm²` 
-      : 'Physical size unavailable';
+      : (currentEntry.coverage_pct != null ? `${Number(currentEntry.coverage_pct).toFixed(1)}%` : 'Physical size unavailable');
 
     return {
       isBaseline: false,
@@ -171,7 +194,7 @@ const comparisonService = {
       painDiff,
       swellingDiff,
       rednessDiff,
-      healingProgress: areaDiff.hasComparison && areaDiff.reductionPct > 0 ? 'Improving' : (areaDiff.hasComparison && areaDiff.reductionPct < 0 ? 'Worsening' : 'Stable'),
+      healingProgress: areaDiff.hasComparison && areaDiff.reductionPct > 5 ? 'Improving' : (areaDiff.hasComparison && areaDiff.reductionPct < -5 ? 'Worsening' : 'Stable'),
       whatChanged: [
         { label: 'Estimated 2D area', from: baseAreaStr, to: currAreaStr, summary: areaDiff.formattedText },
         { label: 'Pain score', from: baselineEntry.pain_score != null ? `${baselineEntry.pain_score}/10` : 'Not reported', to: currentEntry.pain_score != null ? `${currentEntry.pain_score}/10` : 'Not reported', summary: painDiff.text },

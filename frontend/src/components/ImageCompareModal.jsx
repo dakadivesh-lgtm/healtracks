@@ -425,6 +425,139 @@ function CompareModalInner({ onClose, entryA, entryB }) {
 
         {/* Longitudinal Changes */}
         <div style={{ marginTop: 24, background: '#F8FAF9', border: '1px solid #E2E8E3', borderRadius: 14, padding: 18 }}>
+          {/* Healing Status Headline */}
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '12px 16px', borderRadius: 10, marginBottom: 16,
+            background: (() => {
+              let compData = followup?.comparison_data;
+              if (typeof compData === 'string') { try { compData = JSON.parse(compData); } catch {} }
+              let status = compData?.healingProgress;
+              if (!status) {
+                let redPct = null;
+                if (cm2_A != null && cm2_B != null && cm2_A > 0) {
+                  redPct = ((cm2_A - cm2_B) / cm2_A) * 100;
+                } else if (cov_A != null && cov_B != null && cov_A > 0) {
+                  redPct = ((cov_A - cov_B) / cov_A) * 100;
+                }
+                if (redPct !== null) {
+                  if (redPct > 5) status = 'Improving';
+                  else if (redPct < -5) status = 'Worsening';
+                  else status = 'Stable';
+                } else {
+                  status = 'Stable';
+                }
+              }
+              if (status === 'Improving') return '#DCFCE7';
+              if (status === 'Worsening') return '#FEE2E2';
+              return '#F1F5F9';
+            })(),
+            border: `1px solid ${(() => {
+              let compData = followup?.comparison_data;
+              if (typeof compData === 'string') { try { compData = JSON.parse(compData); } catch {} }
+              let status = compData?.healingProgress;
+              if (!status) {
+                let redPct = null;
+                if (cm2_A != null && cm2_B != null && cm2_A > 0) {
+                  redPct = ((cm2_A - cm2_B) / cm2_A) * 100;
+                } else if (cov_A != null && cov_B != null && cov_A > 0) {
+                  redPct = ((cov_A - cov_B) / cov_A) * 100;
+                }
+                if (redPct !== null) {
+                  if (redPct > 5) status = 'Improving';
+                  else if (redPct < -5) status = 'Worsening';
+                  else status = 'Stable';
+                } else {
+                  status = 'Stable';
+                }
+              }
+              if (status === 'Improving') return '#86EFAC';
+              if (status === 'Worsening') return '#FCA5A5';
+              return '#CBD5E1';
+            })()}`
+          }}>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#64748B', letterSpacing: '0.05em' }}>
+                Healing Status
+              </div>
+              <div style={{
+                fontSize: 16, fontWeight: 800, marginTop: 2,
+                color: (() => {
+                  let compData = followup?.comparison_data;
+                  if (typeof compData === 'string') { try { compData = JSON.parse(compData); } catch {} }
+                  let status = compData?.healingProgress;
+                  if (!status) {
+                    let redPct = null;
+                    if (cm2_A != null && cm2_B != null && cm2_A > 0) {
+                      redPct = ((cm2_A - cm2_B) / cm2_A) * 100;
+                    } else if (cov_A != null && cov_B != null && cov_A > 0) {
+                      redPct = ((cov_A - cov_B) / cov_A) * 100;
+                    }
+                    if (redPct !== null) {
+                      if (redPct > 5) status = 'Improving';
+                      else if (redPct < -5) status = 'Worsening';
+                      else status = 'Stable';
+                    } else {
+                      status = 'Stable';
+                    }
+                  }
+                  if (status === 'Improving') return '#15803D';
+                  if (status === 'Worsening') return '#B91C1C';
+                  return '#475569';
+                })()
+              }}>
+                {(() => {
+                  let compData = followup?.comparison_data;
+                  if (typeof compData === 'string') { try { compData = JSON.parse(compData); } catch {} }
+                  let status = compData?.healingProgress;
+                  if (!status) {
+                    let redPct = null;
+                    if (cm2_A != null && cm2_B != null && cm2_A > 0) {
+                      redPct = ((cm2_A - cm2_B) / cm2_A) * 100;
+                    } else if (cov_A != null && cov_B != null && cov_A > 0) {
+                      redPct = ((cov_A - cov_B) / cov_A) * 100;
+                    }
+                    if (redPct !== null) {
+                      if (redPct > 5) status = 'Improving';
+                      else if (redPct < -5) status = 'Worsening';
+                      else status = 'Stable';
+                    } else {
+                      status = 'Stable';
+                    }
+                  }
+                  if (status === 'Improving') return '🟢 Improving';
+                  if (status === 'Worsening') return '🔴 Worsening';
+                  return '⚪ Stable';
+                })()}
+              </div>
+            </div>
+            <div style={{ fontSize: 12, color: '#64748B', fontWeight: 500 }}>
+              {(() => {
+                let compData = followup?.comparison_data;
+                if (typeof compData === 'string') { try { compData = JSON.parse(compData); } catch {} }
+                let status = compData?.healingProgress;
+                if (!status) {
+                  let redPct = null;
+                  if (cm2_A != null && cm2_B != null && cm2_A > 0) {
+                    redPct = ((cm2_A - cm2_B) / cm2_A) * 100;
+                  } else if (cov_A != null && cov_B != null && cov_A > 0) {
+                    redPct = ((cov_A - cov_B) / cov_A) * 100;
+                  }
+                  if (redPct !== null) {
+                    if (redPct > 5) status = 'Improving';
+                    else if (redPct < -5) status = 'Worsening';
+                    else status = 'Stable';
+                  } else {
+                    status = 'Stable';
+                  }
+                }
+                if (status === 'Improving') return 'Wound area reduced by more than 5%';
+                if (status === 'Worsening') return 'Wound area increased by more than 5%';
+                return 'Wound area change is within ±5% threshold';
+              })()}
+            </div>
+          </div>
+
           <h4 style={{ fontSize: 14, fontWeight: 700, color: '#153C2E', marginBottom: 14, margin: '0 0 14px', textTransform: 'uppercase' }}>
             Longitudinal Changes (Day 1 → Day {followupDayNum})
           </h4>
