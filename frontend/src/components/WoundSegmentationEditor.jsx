@@ -114,7 +114,7 @@ function segmentWoundAroundPoint(canvas, targetX, targetY) {
   return { roi: { x: roiX, y: roiY, w: roiW, h: roiH }, boundary, segConfidence, woundFraction };
 }
 
-export default function WoundSegmentationEditor({ imageUrl, initialData, onSave, onCancel }) {
+export default function WoundSegmentationEditor({ imageUrl, initialData, onSave, onCancel, entryId }) {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
   const offscreenRef = useRef(null);
@@ -502,16 +502,17 @@ export default function WoundSegmentationEditor({ imageUrl, initialData, onSave,
       algorithmVersion: '2.0.0-cielab'
     };
 
-    const entryId = initialData?.entryId || initialData?.id;
-    if (entryId) {
+    const targetEntryId = entryId || initialData?.entryId || initialData?.id || initialData?.woundEntryId;
+    let savedResponse = null;
+    if (targetEntryId) {
       try {
-        await woundService.updateMeasurements(entryId, dataToSave);
+        savedResponse = await woundService.updateMeasurements(targetEntryId, dataToSave);
       } catch (err) {
         console.warn('Could not persist measurements to server:', err.message);
       }
     }
 
-    onSave(dataToSave);
+    onSave(dataToSave, savedResponse);
   };
 
   return (

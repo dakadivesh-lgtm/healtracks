@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, Component } from 'react';
 import { getImageUrl } from '../services/api';
+import { woundService } from '../services/woundService';
 
 /* ─── Error Boundary ──────────────────────────────────────────────────── */
 class CompareErrorBoundary extends Component {
@@ -164,11 +165,49 @@ function CompareModalInner({ onClose, entryA, entryB }) {
   const canvasRef = useRef(null);
   const imgRef = useRef(null);
 
+  const [freshEntryA, setFreshEntryA] = useState(entryA);
+  const [freshEntryB, setFreshEntryB] = useState(entryB);
+  const [freshComparison, setFreshComparison] = useState(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadFreshComparisonData() {
+      const eA = entryA;
+      const eB = entryB;
+      if (!eA || !eB) return;
+      const woundId = eB.wound_id || eA.wound_id;
+      const entryIdB = eB.id;
+
+      try {
+        if (woundId) {
+          const detailRes = await woundService.getWoundDetail(woundId);
+          if (isMounted && detailRes?.timeline) {
+            const foundA = detailRes.timeline.find(e => String(e.id) === String(eA.id));
+            const foundB = detailRes.timeline.find(e => String(e.id) === String(eB.id));
+            if (foundA) setFreshEntryA(foundA);
+            if (foundB) setFreshEntryB(foundB);
+          }
+        }
+        if (woundId && entryIdB) {
+          const compRes = await woundService.getWoundComparison(woundId, entryIdB);
+          if (isMounted && compRes?.data) {
+            setFreshComparison(compRes.data);
+          }
+        }
+      } catch (err) {
+        console.warn('Could not fetch fresh comparison data:', err);
+      }
+    }
+
+    loadFreshComparisonData();
+    return () => { isMounted = false; };
+  }, [entryA?.id, entryB?.id]);
+
   // Determine baseline vs follow-up
-  const dayA = entryA?.followup_day ?? (entryA?.is_followup ? 3 : 1);
-  const dayB = entryB?.followup_day ?? (entryB?.is_followup ? 3 : 1);
-  const baseline = dayA <= dayB ? entryA : entryB;
-  const followup  = baseline === entryA ? entryB : entryA;
+  const dayA = freshEntryA?.followup_day ?? (freshEntryA?.is_followup ? 3 : 1);
+  const dayB = freshEntryB?.followup_day ?? (freshEntryB?.is_followup ? 3 : 1);
+  const baseline = dayA <= dayB ? freshEntryA : freshEntryB;
+  const followup  = baseline === freshEntryA ? freshEntryB : freshEntryA;
 
   const followupDayNum = followup?.followup_day ?? (followup?.is_followup ? 3 : (dayA <= dayB ? dayB : dayA));
   const sameDayDemo = isSameCalendarDay(baseline?.entry_date || baseline?.created_at, followup?.entry_date || followup?.created_at);
@@ -304,6 +343,37 @@ function CompareModalInner({ onClose, entryA, entryB }) {
     }
   }
 
+  // Derive active healing status from fresh server comparison or fresh entry data
+  const getActiveHealingStatus = () => {
+    if (freshComparison?.healingProgress) {
+      return freshComparison.healingProgress;
+    }
+    let compData = followup?.comparison_data;
+    if (typeof compData === 'string') {
+      try { compData = JSON.parse(compData); } catch {}
+    }
+    if (compData && compData.healingProgress) {
+      return compData.healingProgress;
+    }
+
+    let redPct = null;
+    if (cm2_A != null && cm2_B != null && cm2_A > 0) {
+      redPct = ((cm2_A - cm2_B) / cm2_A) * 100;
+    } else if (cov_A != null && cov_B != null && cov_A > 0) {
+      redPct = ((cov_A - cov_B) / cov_A) * 100;
+    }
+
+    if (redPct !== null) {
+      if (redPct > 5) return 'Improving';
+      if (redPct < -5) return 'Worsening';
+      return 'Stable';
+    }
+
+    return 'Not enough data';
+  };
+
+  const activeHealingStatus = getActiveHealingStatus();
+
   const followupImgSrc = getSafeImageUrl(followup);
 
   return (
@@ -429,52 +499,8 @@ function CompareModalInner({ onClose, entryA, entryB }) {
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '12px 16px', borderRadius: 10, marginBottom: 16,
-            background: (() => {
-              let compData = followup?.comparison_data;
-              if (typeof compData === 'string') { try { compData = JSON.parse(compData); } catch {} }
-              let status = compData?.healingProgress;
-              if (!status) {
-                let redPct = null;
-                if (cm2_A != null && cm2_B != null && cm2_A > 0) {
-                  redPct = ((cm2_A - cm2_B) / cm2_A) * 100;
-                } else if (cov_A != null && cov_B != null && cov_A > 0) {
-                  redPct = ((cov_A - cov_B) / cov_A) * 100;
-                }
-                if (redPct !== null) {
-                  if (redPct > 5) status = 'Improving';
-                  else if (redPct < -5) status = 'Worsening';
-                  else status = 'Stable';
-                } else {
-                  status = 'Stable';
-                }
-              }
-              if (status === 'Improving') return '#DCFCE7';
-              if (status === 'Worsening') return '#FEE2E2';
-              return '#F1F5F9';
-            })(),
-            border: `1px solid ${(() => {
-              let compData = followup?.comparison_data;
-              if (typeof compData === 'string') { try { compData = JSON.parse(compData); } catch {} }
-              let status = compData?.healingProgress;
-              if (!status) {
-                let redPct = null;
-                if (cm2_A != null && cm2_B != null && cm2_A > 0) {
-                  redPct = ((cm2_A - cm2_B) / cm2_A) * 100;
-                } else if (cov_A != null && cov_B != null && cov_A > 0) {
-                  redPct = ((cov_A - cov_B) / cov_A) * 100;
-                }
-                if (redPct !== null) {
-                  if (redPct > 5) status = 'Improving';
-                  else if (redPct < -5) status = 'Worsening';
-                  else status = 'Stable';
-                } else {
-                  status = 'Stable';
-                }
-              }
-              if (status === 'Improving') return '#86EFAC';
-              if (status === 'Worsening') return '#FCA5A5';
-              return '#CBD5E1';
-            })()}`
+            background: activeHealingStatus === 'Improving' ? '#DCFCE7' : activeHealingStatus === 'Worsening' ? '#FEE2E2' : '#F1F5F9',
+            border: `1px solid ${activeHealingStatus === 'Improving' ? '#86EFAC' : activeHealingStatus === 'Worsening' ? '#FCA5A5' : '#CBD5E1'}`
           }}>
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#64748B', letterSpacing: '0.05em' }}>
@@ -482,79 +508,19 @@ function CompareModalInner({ onClose, entryA, entryB }) {
               </div>
               <div style={{
                 fontSize: 16, fontWeight: 800, marginTop: 2,
-                color: (() => {
-                  let compData = followup?.comparison_data;
-                  if (typeof compData === 'string') { try { compData = JSON.parse(compData); } catch {} }
-                  let status = compData?.healingProgress;
-                  if (!status) {
-                    let redPct = null;
-                    if (cm2_A != null && cm2_B != null && cm2_A > 0) {
-                      redPct = ((cm2_A - cm2_B) / cm2_A) * 100;
-                    } else if (cov_A != null && cov_B != null && cov_A > 0) {
-                      redPct = ((cov_A - cov_B) / cov_A) * 100;
-                    }
-                    if (redPct !== null) {
-                      if (redPct > 5) status = 'Improving';
-                      else if (redPct < -5) status = 'Worsening';
-                      else status = 'Stable';
-                    } else {
-                      status = 'Stable';
-                    }
-                  }
-                  if (status === 'Improving') return '#15803D';
-                  if (status === 'Worsening') return '#B91C1C';
-                  return '#475569';
-                })()
+                color: activeHealingStatus === 'Improving' ? '#15803D' : activeHealingStatus === 'Worsening' ? '#B91C1C' : activeHealingStatus === 'Stable' ? '#475569' : '#64748B'
               }}>
-                {(() => {
-                  let compData = followup?.comparison_data;
-                  if (typeof compData === 'string') { try { compData = JSON.parse(compData); } catch {} }
-                  let status = compData?.healingProgress;
-                  if (!status) {
-                    let redPct = null;
-                    if (cm2_A != null && cm2_B != null && cm2_A > 0) {
-                      redPct = ((cm2_A - cm2_B) / cm2_A) * 100;
-                    } else if (cov_A != null && cov_B != null && cov_A > 0) {
-                      redPct = ((cov_A - cov_B) / cov_A) * 100;
-                    }
-                    if (redPct !== null) {
-                      if (redPct > 5) status = 'Improving';
-                      else if (redPct < -5) status = 'Worsening';
-                      else status = 'Stable';
-                    } else {
-                      status = 'Stable';
-                    }
-                  }
-                  if (status === 'Improving') return '🟢 Improving';
-                  if (status === 'Worsening') return '🔴 Worsening';
-                  return '⚪ Stable';
-                })()}
+                {activeHealingStatus === 'Improving' && '🟢 Improving'}
+                {activeHealingStatus === 'Worsening' && '🔴 Worsening'}
+                {activeHealingStatus === 'Stable' && '⚪ Stable'}
+                {activeHealingStatus === 'Not enough data' && 'Not enough data'}
               </div>
             </div>
             <div style={{ fontSize: 12, color: '#64748B', fontWeight: 500 }}>
-              {(() => {
-                let compData = followup?.comparison_data;
-                if (typeof compData === 'string') { try { compData = JSON.parse(compData); } catch {} }
-                let status = compData?.healingProgress;
-                if (!status) {
-                  let redPct = null;
-                  if (cm2_A != null && cm2_B != null && cm2_A > 0) {
-                    redPct = ((cm2_A - cm2_B) / cm2_A) * 100;
-                  } else if (cov_A != null && cov_B != null && cov_A > 0) {
-                    redPct = ((cov_A - cov_B) / cov_A) * 100;
-                  }
-                  if (redPct !== null) {
-                    if (redPct > 5) status = 'Improving';
-                    else if (redPct < -5) status = 'Worsening';
-                    else status = 'Stable';
-                  } else {
-                    status = 'Stable';
-                  }
-                }
-                if (status === 'Improving') return 'Wound area reduced by more than 5%';
-                if (status === 'Worsening') return 'Wound area increased by more than 5%';
-                return 'Wound area change is within ±5% threshold';
-              })()}
+              {activeHealingStatus === 'Improving' && 'Wound area reduced by more than 5%'}
+              {activeHealingStatus === 'Worsening' && 'Wound area increased by more than 5%'}
+              {activeHealingStatus === 'Stable' && 'Wound area change is within ±5% threshold'}
+              {activeHealingStatus === 'Not enough data' && 'Confirm wound boundaries to enable progression calculation'}
             </div>
           </div>
 

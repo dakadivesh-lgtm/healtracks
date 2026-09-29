@@ -224,10 +224,19 @@ export default function ResultPage({ resultData, onNavigate, onShowNotification 
     handleImageLoaded();
   }, [segData, showOverlay]);
 
-  const handleSaveEditor = (newSegData) => {
+  const handleSaveEditor = (newSegData, savedResponse) => {
     setSegData(newSegData);
     if (newSegData.rednessData) {
       setRednessInfo(newSegData.rednessData);
+    }
+    if (savedResponse?.entry && resultData) {
+      resultData.coveragePct = savedResponse.entry.coverage_pct;
+      resultData.physicalAreaCm2 = savedResponse.entry.wound_area_cm2;
+      resultData.segmentationData = savedResponse.entry.segmentation_data;
+      resultData.comparisonData = savedResponse.comparison;
+    }
+    if (onShowNotification) {
+      onShowNotification('Wound boundary and measurements confirmed and saved.', 'success');
     }
     setShowEditor(false);
   };
@@ -255,6 +264,7 @@ export default function ResultPage({ resultData, onNavigate, onShowNotification 
         <WoundSegmentationEditor
           imageUrl={photoUrl}
           initialData={segData}
+          entryId={resultData?.entryId || resultData?.id || resultData?.entry?.id}
           onSave={handleSaveEditor}
           onCancel={() => setShowEditor(false)}
         />
