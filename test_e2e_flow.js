@@ -151,8 +151,8 @@ async function runTests() {
   const day3MeasData = await day3MeasRes.json();
   console.log('   Day 3 Measurements Saved! cm²:', day3MeasData.data.entry.wound_area_cm2);
 
-  // 9. Test Day 3 Symptom Persistence & Triage Evaluation
-  console.log('\n9. Testing Day 3 Symptom Persistence & Safety Rule Engine...');
+  // 9. Test Day 3 Symptom Persistence & Safety Rule Engine (Warmth + Redness Corroboration)
+  console.log('\n9. Testing Day 3 Symptom Persistence & Warmth/Redness Corroboration...');
   const day3SymRes = await fetch(`${baseUrl}/wounds/entries/${day3EntryId}/symptoms`, {
     method: 'PATCH',
     headers: { ...authHeaders, 'Content-Type': 'application/json' },
@@ -160,19 +160,62 @@ async function runTests() {
       painScore: 4,
       swellingLevel: 'Mild',
       rednessStatus: 'Slightly Increased',
+      warmthStatus: 'Yes',
+      functionStatus: 'Yes, normal',
       fever: false,
       discharge: false,
       badSmell: false
     })
   });
   const day3SymData = await day3SymRes.json();
+  if (!day3SymData.success) throw new Error('Day 3 Symptom update failed');
   console.log('   Day 3 Symptoms Saved!');
   console.log('   Safety Triage Level:', day3SymData.data.comparison.triage.level);
   console.log('   Safety Triage Title:', day3SymData.data.comparison.triage.title);
   console.log('   Safety Reasons:', day3SymData.data.comparison.triage.reasons);
 
-  // 10. Test Longitudinal Comparison Engine Endpoint
-  console.log('\n10. Testing Longitudinal Comparison Endpoint (GET /comparison)...');
+  const d3Reasons = day3SymData.data.comparison.triage.reasons || [];
+  const hasRednessReason = d3Reasons.some(r => r.toLowerCase().includes('redness'));
+  const hasWarmthReason = d3Reasons.some(r => r.toLowerCase().includes('warmth'));
+
+  if (!hasRednessReason || !hasWarmthReason) {
+    throw new Error('Warmth + Redness corroboration test failed. Expected both Redness and Warmth in reasons list.');
+  }
+  console.log('   ✅ Warmth + Redness Corroboration Verified! Both contributing reasons present in reasons list.');
+
+  // 10. Test Function = "No, hard to move" Safety Escalation Rule
+  console.log('\n10. Testing Function Escalation Rule ("No, hard to move")...');
+  const funcTestRes = await fetch(`${baseUrl}/wounds/entries/${day3EntryId}/symptoms`, {
+    method: 'PATCH',
+    headers: { ...authHeaders, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      painScore: 4,
+      swellingLevel: 'Mild',
+      rednessStatus: 'Normal',
+      warmthStatus: 'No',
+      functionStatus: 'No, hard to move',
+      fever: false,
+      discharge: false,
+      badSmell: false
+    })
+  });
+  const funcTestData = await funcTestRes.json();
+  if (!funcTestData.success) throw new Error('Function escalation test request failed');
+  const funcTriage = funcTestData.data.comparison.triage;
+  console.log('   Safety Triage Level:', funcTriage.level);
+  console.log('   Safety Reasons:', funcTriage.reasons);
+
+  if (funcTriage.level !== 'red') {
+    throw new Error(`Function escalation failed. Expected triage level 'red', got '${funcTriage.level}'`);
+  }
+  const hasFuncReason = (funcTriage.reasons || []).some(r => r.toLowerCase().includes('move'));
+  if (!hasFuncReason) {
+    throw new Error('Function escalation failed. Expected reason list to contain hard to move reason.');
+  }
+  console.log('   ✅ Function Escalation Verified! Hard to move escalated result to RED with reason shown.');
+
+  // 11. Test Longitudinal Comparison Engine Endpoint
+  console.log('\n11. Testing Longitudinal Comparison Endpoint (GET /comparison)...');
   const compRes = await fetch(`${baseUrl}/wounds/${createdWoundId}/comparison/${day3EntryId}`, { headers: authHeaders });
   const compData = await compRes.json();
   if (!compData.success) throw new Error('Comparison endpoint failed');

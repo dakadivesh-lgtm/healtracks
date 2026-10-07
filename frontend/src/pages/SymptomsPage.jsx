@@ -17,6 +17,8 @@ export default function SymptomsPage({ assessmentPayload, onComplete, onNavigate
   const [rednessStatus, setRednessStatus] = useState(null); // 'Normal', 'Slightly Increased', 'Spreading'
 
   const [fever, setFever] = useState(null);
+  const [warmthStatus, setWarmthStatus] = useState(null); // 'Yes', 'No', 'Not sure'
+  const [functionStatus, setFunctionStatus] = useState(null); // 'Yes, normal', 'Some difficulty', 'No, hard to move'
   const [discharge, setDischarge] = useState(null);
   const [badSmell, setBadSmell] = useState(null);
   const [worseningPain, setWorseningPain] = useState(null);
@@ -38,6 +40,8 @@ export default function SymptomsPage({ assessmentPayload, onComplete, onNavigate
     if (painScore === null) unanswered.push('Pain Score');
     if (swellingLevel === null) unanswered.push('Swelling Level');
     if (rednessStatus === null) unanswered.push('Redness Spreading');
+    if (warmthStatus === null) unanswered.push('Warmth');
+    if (functionStatus === null) unanswered.push('Function');
     if (fever === null) unanswered.push('Fever');
     if (discharge === null) unanswered.push('Discharge/Pus');
     if (badSmell === null) unanswered.push('Bad Smell');
@@ -68,6 +72,12 @@ export default function SymptomsPage({ assessmentPayload, onComplete, onNavigate
       swelling_level: swellingLevel || 'Not recorded',
       rednessStatus: rednessStatus || 'Not recorded',
       redness_status: rednessStatus || 'Not recorded',
+      warmthStatus: warmthStatus || 'Not sure',
+      warmth_status: warmthStatus || 'Not sure',
+      warmth: warmthStatus || 'Not sure',
+      functionStatus: functionStatus || 'Yes, normal',
+      function_status: functionStatus || 'Yes, normal',
+      function: functionStatus || 'Yes, normal',
       fever: fever === true,
       discharge: discharge === true,
       badSmell: badSmell === true,
@@ -116,7 +126,8 @@ export default function SymptomsPage({ assessmentPayload, onComplete, onNavigate
         (discharge === true && worseningPain === true) ||
         (badSmell === true && worseningPain === true) ||
         (diabetes === true && footWound === true) ||
-        tetanusConcern === true
+        tetanusConcern === true ||
+        functionStatus === 'No, hard to move'
       );
       await new Promise(r => setTimeout(r, 400));
 
@@ -295,7 +306,87 @@ export default function SymptomsPage({ assessmentPayload, onComplete, onNavigate
               </div>
             </div>
 
-            {/* 4. Yes/No Questions Grid */}
+            {/* 4. Warmth */}
+            <div style={{
+              background: warmthStatus === null ? '#FFFBEB' : '#F8FAF9',
+              border: warmthStatus === null ? '1.5px solid #F59E0B' : '1px solid #E2E8E3',
+              borderRadius: '12px',
+              padding: '16px'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <label style={{ fontWeight: 600, color: '#153C2E', fontSize: '14px' }}>
+                  Does the area feel warmer than the skin around it? *
+                </label>
+                {warmthStatus === null && (
+                  <span style={{ fontSize: '11px', color: '#D97706', fontWeight: 600 }}>Unanswered</span>
+                )}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                {['Yes', 'No', 'Not sure'].map(opt => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => setWarmthStatus(opt)}
+                    style={{
+                      padding: '9px 6px',
+                      borderRadius: '8px',
+                      border: warmthStatus === opt ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                      background: warmthStatus === opt ? '#EFF6FF' : '#FFFFFF',
+                      color: warmthStatus === opt ? '#1E40AF' : '#334155',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      fontSize: '12.5px'
+                    }}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 5. Function */}
+            <div style={{
+              background: functionStatus === null ? '#FFFBEB' : '#F8FAF9',
+              border: functionStatus === null ? '1.5px solid #F59E0B' : '1px solid #E2E8E3',
+              borderRadius: '12px',
+              padding: '16px'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <label style={{ fontWeight: 600, color: '#153C2E', fontSize: '14px' }}>
+                  Can you move or use the area normally? *
+                </label>
+                {functionStatus === null && (
+                  <span style={{ fontSize: '11px', color: '#D97706', fontWeight: 600 }}>Unanswered</span>
+                )}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                {[
+                  { label: 'Yes, normal', val: 'Yes, normal' },
+                  { label: 'Some difficulty', val: 'Some difficulty' },
+                  { label: 'No, hard to move', val: 'No, hard to move' }
+                ].map(opt => (
+                  <button
+                    key={opt.val}
+                    type="button"
+                    onClick={() => setFunctionStatus(opt.val)}
+                    style={{
+                      padding: '9px 6px',
+                      borderRadius: '8px',
+                      border: functionStatus === opt.val ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                      background: functionStatus === opt.val ? '#EFF6FF' : '#FFFFFF',
+                      color: functionStatus === opt.val ? '#1E40AF' : '#334155',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      fontSize: '12.5px'
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 6. Yes/No Questions Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               {yesNoQuestions.map((q, idx) => {
                 const isUnanswered = q.required && q.state === null;

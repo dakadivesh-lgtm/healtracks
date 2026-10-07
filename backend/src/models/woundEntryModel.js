@@ -93,6 +93,8 @@ const woundEntryModel = {
     const painScore = s.painScore ?? s.pain_score ?? null;
     const swellingLevel = s.swellingLevel ?? s.swelling_level ?? null;
     const rednessStatus = s.rednessStatus ?? s.redness_status ?? null;
+    const warmthStatus = s.warmthStatus ?? s.warmth_status ?? s.warmth ?? null;
+    const functionStatus = s.functionStatus ?? s.function_status ?? s.function ?? null;
     const fever = s.fever !== undefined ? Boolean(s.fever) : null;
     const discharge = s.discharge !== undefined ? Boolean(s.discharge) : null;
     const badSmell = (s.badSmell ?? s.bad_smell) !== undefined ? Boolean(s.badSmell ?? s.bad_smell) : null;
@@ -109,18 +111,20 @@ const woundEntryModel = {
       SET pain_score = $1,
           swelling_level = $2,
           redness_status = $3,
-          fever = $4,
-          discharge = $5,
-          bad_smell = $6,
-          bleeding_uncontrolled = $7,
-          diabetes = $8,
-          foot_wound = $9,
-          animal_bite = $10,
-          snake_bite = $11,
-          tetanus_concern = $12,
-          worsening_pain = $13,
-          symptom_data = $14
-      WHERE id = $15 AND user_id = $16
+          warmth_status = $4,
+          function_status = $5,
+          fever = $6,
+          discharge = $7,
+          bad_smell = $8,
+          bleeding_uncontrolled = $9,
+          diabetes = $10,
+          foot_wound = $11,
+          animal_bite = $12,
+          snake_bite = $13,
+          tetanus_concern = $14,
+          worsening_pain = $15,
+          symptom_data = $16
+      WHERE id = $17 AND user_id = $18
     `;
     const symStr = typeof symptomData === 'object' && symptomData !== null
       ? JSON.stringify(symptomData)
@@ -130,6 +134,8 @@ const woundEntryModel = {
       painScore,
       swellingLevel,
       rednessStatus,
+      warmthStatus,
+      functionStatus,
       fever,
       discharge,
       badSmell,

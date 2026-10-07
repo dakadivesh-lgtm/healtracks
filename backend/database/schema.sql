@@ -42,6 +42,8 @@ CREATE TABLE IF NOT EXISTS wound_entries (
     pain_score INTEGER DEFAULT 0,
     swelling_level VARCHAR(30) DEFAULT 'None',
     redness_status VARCHAR(50) DEFAULT 'Normal',
+    warmth_status VARCHAR(30) DEFAULT 'Not sure',
+    function_status VARCHAR(50) DEFAULT 'Yes, normal',
     fever BOOLEAN DEFAULT FALSE,
     discharge BOOLEAN DEFAULT FALSE,
     bad_smell BOOLEAN DEFAULT FALSE,

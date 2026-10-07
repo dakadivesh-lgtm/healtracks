@@ -373,6 +373,15 @@ document.addEventListener('DOMContentLoaded', () => {
       statusTitleEl.textContent = 'No listed warning signs reported.';
       statusDescEl.textContent  = 'This does not rule out a wound problem or guarantee healing. Monitor the wound and seek care if anything changes.';
     }
+
+    const reasonsCardEl = document.getElementById('result-reasons-card');
+    const reasonsListEl = document.getElementById('result-reasons-list');
+    const reasons = (resultData && (resultData.reasons || (resultData.comparisonData && resultData.comparisonData.triage && resultData.comparisonData.triage.reasons))) || [];
+    if (reasonsCardEl && reasonsListEl && Array.isArray(reasons) && reasons.length > 0) {
+      reasonsCardEl.style.display = 'block';
+      reasonsListEl.innerHTML = reasons.map(r => `<li style="margin-bottom: 4px;">${r}</li>`).join('');
+    }
+  }
   }
 
   // ── 10. New Assessment Reset ─────────────────────────────────

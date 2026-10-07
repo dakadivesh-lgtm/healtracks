@@ -36,6 +36,12 @@ const triageService = {
     const isFootWound = Boolean(s.foot_wound || symptomData.footWound);
     const hasTetanusConcern = Boolean(s.tetanus_concern || symptomData.tetanusConcern);
 
+    const warmthVal = s.warmth_status || symptomData.warmthStatus || s.warmth || symptomData.warmth || '';
+    const functionVal = s.function_status || symptomData.functionStatus || s.function || symptomData.function || '';
+    const isHardToMove = (functionVal === 'No, hard to move');
+    const isSomeDifficultyMoving = (functionVal === 'Some difficulty');
+    const isWarmthYes = (warmthVal === 'Yes');
+
     // --- RED CRITERIA (Safety Rules & Urgent Warning Signs) ---
     if (isSnakeBite) {
       level = 'red';
@@ -68,6 +74,10 @@ const triageService = {
     if (hasTetanusConcern) {
       level = 'red';
       reasons.push('Deep/dirty wound with unknown or outdated tetanus vaccination.');
+    }
+    if (isHardToMove) {
+      level = 'red';
+      reasons.push('Inability to move or use the wound area normally reported (hard to move).');
     }
 
     // Only evaluate longitudinal area change if NOT baseline entry!
@@ -133,6 +143,18 @@ const triageService = {
     if (isPainWorsened) {
       level = 'amber';
       reasons.push(`Pain level increased from ${prevPainScore}/10 to ${painScore}/10.`);
+    }
+
+    const isRednessIncreased = isRednessSpreading || isRednessSlightlyIncreased || (baselineEntry && s.redness_status && s.redness_status !== 'Normal');
+    if (isRednessIncreased && isWarmthYes) {
+      if (!reasons.includes('Warmth reported: area feels warmer than skin around it.')) {
+        reasons.push('Warmth reported: area feels warmer than skin around it.');
+      }
+    }
+    if (isSomeDifficultyMoving && level !== 'green') {
+      if (!reasons.includes('Some difficulty moving or using the wound area reported.')) {
+        reasons.push('Some difficulty moving or using the wound area reported.');
+      }
     }
 
     if (level === 'amber') {

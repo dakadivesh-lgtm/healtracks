@@ -529,6 +529,37 @@ export default function ResultPage({ resultData, onNavigate, onShowNotification 
               </div>
             </div>
 
+            {/* "Why this result" reasons list */}
+            {(() => {
+              const reasonsList = resultData?.comparisonData?.triage?.reasons ||
+                resultData?.triageReasons ||
+                resultData?.triage?.reasons ||
+                [];
+              if (!Array.isArray(reasonsList) || reasonsList.length === 0) return null;
+              return (
+                <div className="why-this-result-card" style={{
+                  marginTop: 14,
+                  padding: '14px 16px',
+                  borderRadius: '12px',
+                  background: '#FFFFFF',
+                  border: '1px solid #E2E8F0',
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.04)'
+                }}>
+                  <h4 style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>🔍</span>
+                    <span>Why this result</span>
+                  </h4>
+                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: '12.5px', color: '#334155', lineHeight: 1.5 }}>
+                    {reasonsList.map((reason, idx) => (
+                      <li key={idx} style={{ marginBottom: 4 }}>
+                        {reason}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })()}
+
             {showHospitalCTA && (
               <div style={{ marginTop: 16 }}>
                 <button

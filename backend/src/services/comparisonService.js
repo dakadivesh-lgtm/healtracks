@@ -141,6 +141,38 @@ const comparisonService = {
   },
 
   /**
+   * Compare local warmth status
+   */
+  compareWarmth(currentWarmth, baselineWarmth) {
+    if (!currentWarmth || currentWarmth === 'Not reported') {
+      return { text: 'Not reported', status: 'neutral' };
+    }
+    if (currentWarmth === 'Yes') {
+      return { text: 'Warmth reported (Yes)', status: 'worsened' };
+    }
+    if (currentWarmth === 'No') {
+      return { text: 'No warmth reported (No)', status: 'improved' };
+    }
+    return { text: `Warmth (${currentWarmth})`, status: 'neutral' };
+  },
+
+  /**
+   * Compare area functional movement status
+   */
+  compareFunction(currentFunction, baselineFunction) {
+    if (!currentFunction || currentFunction === 'Not reported') {
+      return { text: 'Not reported', status: 'neutral' };
+    }
+    if (currentFunction === 'No, hard to move') {
+      return { text: 'Inability to move normally (No, hard to move)', status: 'worsened' };
+    }
+    if (currentFunction === 'Some difficulty') {
+      return { text: 'Some difficulty moving area', status: 'worsened' };
+    }
+    return { text: `Function normal (${currentFunction})`, status: 'improved' };
+  },
+
+  /**
    * Build longitudinal comparison payload for a wound entry
    */
   buildWoundComparison(currentEntry, baselineEntry = null, allEntries = []) {
@@ -161,6 +193,8 @@ const comparisonService = {
         pain: currentEntry.pain_score != null ? `${currentEntry.pain_score} / 10` : 'Not reported',
         redness: currentEntry.redness_status || 'Not reported',
         swelling: currentEntry.swelling_level || 'Not reported',
+        warmth: currentEntry.warmth_status || 'Not reported',
+        function: currentEntry.function_status || 'Not reported',
         message: 'Baseline recorded for this wound case.',
         triage,
         compactStore: {
@@ -176,6 +210,15 @@ const comparisonService = {
     const painDiff = comparisonService.comparePain(currentEntry.pain_score, baselineEntry.pain_score);
     const swellingDiff = comparisonService.compareSwelling(currentEntry.swelling_level, baselineEntry.swelling_level);
     const rednessDiff = comparisonService.compareRedness(currentEntry.redness_status, baselineEntry.redness_status);
+
+    const currWarmth = currentEntry.warmth_status || (currentEntry.symptom_data ? (typeof currentEntry.symptom_data === 'string' ? JSON.parse(currentEntry.symptom_data).warmth : currentEntry.symptom_data.warmth) : null) || 'Not reported';
+    const baseWarmth = baselineEntry ? (baselineEntry.warmth_status || (baselineEntry.symptom_data ? (typeof baselineEntry.symptom_data === 'string' ? JSON.parse(baselineEntry.symptom_data).warmth : baselineEntry.symptom_data.warmth) : null)) : 'Not reported';
+
+    const currFunction = currentEntry.function_status || (currentEntry.symptom_data ? (typeof currentEntry.symptom_data === 'string' ? JSON.parse(currentEntry.symptom_data).function : currentEntry.symptom_data.function) : null) || 'Not reported';
+    const baseFunction = baselineEntry ? (baselineEntry.function_status || (baselineEntry.symptom_data ? (typeof baselineEntry.symptom_data === 'string' ? JSON.parse(baselineEntry.symptom_data).function : baselineEntry.symptom_data.function) : null)) : 'Not reported';
+
+    const warmthDiff = comparisonService.compareWarmth(currWarmth, baseWarmth);
+    const functionDiff = comparisonService.compareFunction(currFunction, baseFunction);
 
     const baseAreaStr = baselineEntry.wound_area_cm2 != null 
       ? `${Number(baselineEntry.wound_area_cm2).toFixed(2)} cm²` 
@@ -194,12 +237,16 @@ const comparisonService = {
       painDiff,
       swellingDiff,
       rednessDiff,
+      warmthDiff,
+      functionDiff,
       healingProgress: areaDiff.hasComparison && areaDiff.reductionPct > 5 ? 'Improving' : (areaDiff.hasComparison && areaDiff.reductionPct < -5 ? 'Worsening' : 'Stable'),
       whatChanged: [
         { label: 'Estimated 2D area', from: baseAreaStr, to: currAreaStr, summary: areaDiff.formattedText },
         { label: 'Pain score', from: baselineEntry.pain_score != null ? `${baselineEntry.pain_score}/10` : 'Not reported', to: currentEntry.pain_score != null ? `${currentEntry.pain_score}/10` : 'Not reported', summary: painDiff.text },
         { label: 'Spreading redness', from: baselineEntry.redness_status || 'Not reported', to: currentEntry.redness_status || 'Not reported', summary: rednessDiff.text },
-        { label: 'Swelling', from: baselineEntry.swelling_level || 'Not reported', to: currentEntry.swelling_level || 'Not reported', summary: swellingDiff.text }
+        { label: 'Swelling', from: baselineEntry.swelling_level || 'Not reported', to: currentEntry.swelling_level || 'Not reported', summary: swellingDiff.text },
+        { label: 'Local warmth', from: baseWarmth, to: currWarmth, summary: warmthDiff.text },
+        { label: 'Area function', from: baseFunction, to: currFunction, summary: functionDiff.text }
       ],
       triage,
       compactStore: {
@@ -211,6 +258,8 @@ const comparisonService = {
         painChange: painDiff.text,
         rednessChange: rednessDiff.text,
         swellingChange: swellingDiff.text,
+        warmthChange: warmthDiff.text,
+        functionChange: functionDiff.text,
         triageLevel: triage.level
       }
     };
