@@ -175,7 +175,8 @@ const woundController = {
       const validation = await assessmentService.validateWoundImage({
         imagePath: file.path,
         mimeType: file.mimetype,
-        filename: file.filename
+        filename: file.filename,
+        originalname: file.originalname
       });
 
       if (validation.outcome !== 'WOUND_DETECTED') {
