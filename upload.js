@@ -319,11 +319,11 @@ async function handleImageBlob(fileOrBlob) {
       } else if (outcome === 'UNCERTAIN') {
         showRejection([valData.message || 'We can’t confirm a wound from this photo. Please try another photo with the area more visible.']);
       } else {
-        showRejection(['We couldn’t check this image right now. Please try again.']);
+        showNeutralNotice('Validation status: Service currently unavailable.');
       }
     } catch (apiErr) {
       if (thisToken !== currentValidationToken) return;
-      showRejection(['We couldn’t check this image right now. Please try again.']);
+      showNeutralNotice('Validation status: Service currently unavailable.');
     }
 
   } catch (err) {
@@ -356,6 +356,19 @@ function showRejection(reasons) {
   if (statusSummary) {
     statusSummary.textContent = '✗ Photo validation failed';
     statusSummary.dataset.state = 'fail';
+  }
+}
+
+function showNeutralNotice(message) {
+  if (statusSummary) {
+    statusSummary.textContent = 'ℹ️ ' + message;
+    statusSummary.dataset.state = 'neutral';
+    statusSummary.style.color = '#64748B';
+    statusSummary.style.background = '#F8FAFC';
+    statusSummary.style.border = '1px solid #E2E8F0';
+    statusSummary.style.borderRadius = '8px';
+    statusSummary.style.padding = '6px 12px';
+    statusSummary.style.fontSize = '12px';
   }
 }
 
