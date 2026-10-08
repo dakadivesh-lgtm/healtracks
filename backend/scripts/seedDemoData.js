@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const config = require('../src/config');
 const db = require('../src/models/db');
 const userModel = require('../src/models/userModel');
 const woundModel = require('../src/models/woundModel');
@@ -58,7 +59,7 @@ async function seedDemoData() {
   console.log(`✅ Demo Wound ID: ${targetWound.id}`);
 
   // 4. Ensure demo photo files exist in uploads/
-  const uploadsDir = path.resolve(__dirname, '../uploads');
+  const uploadsDir = config.uploads.directory;
   if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
   }
@@ -69,11 +70,23 @@ async function seedDemoData() {
   const day1ImgPath = path.join(uploadsDir, day1ImgName);
   const day3ImgPath = path.join(uploadsDir, day3ImgName);
 
+  const seedAssetsDir = path.resolve(__dirname, '../src/seed_assets');
+
   if (!fs.existsSync(day1ImgPath)) {
-    fs.writeFileSync(day1ImgPath, Buffer.from(SAMPLE_JPEG_BASE64, 'base64'));
+    const seed1 = path.join(seedAssetsDir, day1ImgName);
+    if (fs.existsSync(seed1)) {
+      fs.copyFileSync(seed1, day1ImgPath);
+    } else {
+      fs.writeFileSync(day1ImgPath, Buffer.from(SAMPLE_JPEG_BASE64, 'base64'));
+    }
   }
   if (!fs.existsSync(day3ImgPath)) {
-    fs.writeFileSync(day3ImgPath, Buffer.from(SAMPLE_JPEG_BASE64, 'base64'));
+    const seed3 = path.join(seedAssetsDir, day3ImgName);
+    if (fs.existsSync(seed3)) {
+      fs.copyFileSync(seed3, day3ImgPath);
+    } else {
+      fs.writeFileSync(day3ImgPath, Buffer.from(SAMPLE_JPEG_BASE64, 'base64'));
+    }
   }
 
   // 5. Create Day 1 Baseline Entry using real backend logic
@@ -177,9 +190,13 @@ async function seedDemoData() {
   console.log('\n🎉 DEMO DATA SEEDED SUCCESSFULLY!');
 }
 
-seedDemoData()
-  .then(() => process.exit(0))
-  .catch((err) => {
-    console.error('\n❌ Error seeding demo data:', err);
-    process.exit(1);
-  });
+module.exports = { seedDemoData };
+
+if (require.main === module) {
+  seedDemoData()
+    .then(() => process.exit(0))
+    .catch((err) => {
+      console.error('\n❌ Error seeding demo data:', err);
+      process.exit(1);
+    });
+}

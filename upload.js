@@ -219,11 +219,14 @@ function markAccepted() {
   }
 }
 
+let currentValidationToken = 0;
+
 function resetAccepted() {
   imageAccepted = false;
   acceptedDataUrl = null;
   acceptedWidth   = 0;
   acceptedHeight  = 0;
+  currentValidationToken++; // Clear previous requests immediately
 
   if (btnAnalyze) {
     btnAnalyze.disabled = true;
@@ -243,7 +246,9 @@ async function handleImageBlob(fileOrBlob) {
     return;
   }
 
+  // Requirement 5: Clear previous results immediately when a new image is selected or captured
   resetAccepted();
+  const thisToken = ++currentValidationToken;
 
   const tempUrl = URL.createObjectURL(fileOrBlob);
   const img = new Image();
@@ -254,6 +259,8 @@ async function handleImageBlob(fileOrBlob) {
       img.onerror = () => reject(new Error('Unable to decode photo. Please select a valid image file.'));
       img.src = tempUrl;
     });
+
+    if (thisToken !== currentValidationToken) return;
 
     // Resize proportionally to max 1080px longest side & 70% JPEG quality
     const processed = processAndResizeImage(img);
@@ -279,9 +286,48 @@ async function handleImageBlob(fileOrBlob) {
     const quality = analyseQuality(analysisCanvas);
 
     showStatusPanel(processed.width, processed.height, processed.origWidth, processed.origHeight, quality);
-    markAccepted();
+
+    // Requirement 1 & 5: Display "Checking for a visible wound…" during validation
+    if (statusSummary) {
+      statusSummary.textContent = 'Checking for a visible wound…';
+      statusSummary.dataset.state = 'pending';
+    }
+
+    // Perform server-side visual validation
+    const formData = new FormData();
+    formData.append('image', fileOrBlob, 'scan_upload.jpg');
+
+    const token = localStorage.getItem('ww_token');
+    const authHeader = token ? { 'Authorization': `Bearer ${token}` } : {};
+
+    try {
+      const valRes = await fetch('/api/wounds/validate', {
+        method: 'POST',
+        headers: authHeader,
+        body: formData
+      });
+
+      if (thisToken !== currentValidationToken) return; // Stale request check
+
+      const valData = await valRes.json();
+      const outcome = valData.outcome || (valRes.ok ? 'WOUND_DETECTED' : 'SERVICE_FAILURE');
+
+      if (outcome === 'WOUND_DETECTED') {
+        markAccepted();
+      } else if (outcome === 'NON_WOUND') {
+        showRejection([valData.message || 'We couldn’t identify a visible wound in this photo. Please upload a wound photo.']);
+      } else if (outcome === 'UNCERTAIN') {
+        showRejection([valData.message || 'We can’t confirm a wound from this photo. Please try another photo with the area more visible.']);
+      } else {
+        showRejection(['We couldn’t check this image right now. Please try again.']);
+      }
+    } catch (apiErr) {
+      if (thisToken !== currentValidationToken) return;
+      showRejection(['We couldn’t check this image right now. Please try again.']);
+    }
 
   } catch (err) {
+    if (thisToken !== currentValidationToken) return;
     console.error('Image processing error:', err);
     showRejection([err.message || 'Could not process photo.']);
   } finally {
@@ -298,7 +344,7 @@ function showRejection(reasons) {
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px;">
             <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
           </svg>
-          Photo Processing Failed
+          Photo Validation Notice
         </div>
         <ul class="result-error-list">${reasons.map(r => `<li>${r}</li>`).join('')}</ul>
       `;
@@ -308,7 +354,7 @@ function showRejection(reasons) {
     if (uploadSection) uploadSection.style.display = 'none';
   }
   if (statusSummary) {
-    statusSummary.textContent = '✗ Photo processing failed';
+    statusSummary.textContent = '✗ Photo validation failed';
     statusSummary.dataset.state = 'fail';
   }
 }

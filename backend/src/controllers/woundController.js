@@ -123,6 +123,40 @@ const woundController = {
   },
 
   /**
+   * Validate image content BEFORE entry creation or assessment
+   */
+  async validateWound(req, res, next) {
+    try {
+      const file = req.file;
+      if (!file) {
+        return res.status(400).json({
+          success: false,
+          outcome: 'UNCERTAIN',
+          message: 'We can’t confirm a wound from this photo. Please try another photo with the area more visible.'
+        });
+      }
+
+      const result = await assessmentService.validateWoundImage({
+        imagePath: file.path,
+        mimeType: file.mimetype,
+        filename: file.filename
+      });
+
+      // Clean up validation temp upload
+      fileService.deleteFile(file.filename);
+
+      return res.status(result.outcome === 'WOUND_DETECTED' ? 200 : 422).json({
+        success: result.outcome === 'WOUND_DETECTED',
+        outcome: result.outcome,
+        message: result.message,
+        details: result
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  /**
    * Upload wound image (either a new wound or follow-up to existing wound)
    */
   async uploadWound(req, res, next) {
@@ -134,6 +168,24 @@ const woundController = {
         return res.status(400).json({
           success: false,
           message: 'Please provide a valid wound image file.'
+        });
+      }
+
+      // Requirement 1 & 4: Validate image content BEFORE creating wound case, entry record, or assessment
+      const validation = await assessmentService.validateWoundImage({
+        imagePath: file.path,
+        mimeType: file.mimetype,
+        filename: file.filename
+      });
+
+      if (validation.outcome !== 'WOUND_DETECTED') {
+        fileService.deleteFile(file.filename);
+
+        return res.status(422).json({
+          success: false,
+          outcome: validation.outcome,
+          message: validation.message,
+          details: validation
         });
       }
 

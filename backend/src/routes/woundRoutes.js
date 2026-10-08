@@ -15,6 +15,7 @@ router.get('/', woundController.listWounds);
 router.get('/:id', woundController.getWoundDetail);
 router.get('/:id/comparison/:entryId', woundController.getWoundComparison);
 router.post('/upload', upload.single('image'), woundController.uploadWound);
+router.post('/validate', upload.single('image'), woundController.validateWound);
 router.patch('/entries/:entryId/measurements', woundController.updateEntryMeasurements);
 router.patch('/entries/:entryId/symptoms', woundController.updateEntrySymptoms);
 router.delete('/:id', woundController.deleteWound);

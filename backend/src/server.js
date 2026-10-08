@@ -35,6 +35,17 @@ async function ensureInitialized() {
     initPromise = (async () => {
       await db.initDatabase();
       await seedDefaultUser();
+
+      // Trigger demo wound case seeding if SEED_DEMO=true is configured
+      const seedDemoEnv = process.env.SEED_DEMO ? process.env.SEED_DEMO.toLowerCase().trim() : '';
+      if (seedDemoEnv === 'true' || seedDemoEnv === '1') {
+        try {
+          const { seedDemoData } = require('../scripts/seedDemoData');
+          await seedDemoData();
+        } catch (err) {
+          console.error('⚠️ Failed to seed demo data on startup:', err.message);
+        }
+      }
     })();
   }
   return initPromise;

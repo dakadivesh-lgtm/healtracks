@@ -12,6 +12,11 @@ export default function UploadPage({ onNavigate, onShowNotification, initialWoun
   const [proceedAnyway, setProceedAnyway] = useState(false);
   const [dragOver, setDragOver] = useState(false);
 
+  // Validation State
+  const [validationState, setValidationState] = useState(null); // null | 'VALIDATING' | 'WOUND_DETECTED' | 'NON_WOUND' | 'UNCERTAIN' | 'SERVICE_FAILURE'
+  const [validationMessage, setValidationMessage] = useState('');
+  const reqTokenRef = useRef(0);
+
   // Form State
   const [woundsList, setWoundsList] = useState([]);
   const [selectedWoundId, setSelectedWoundId] = useState(initialWoundId || 'new');
@@ -36,6 +41,43 @@ export default function UploadPage({ onNavigate, onShowNotification, initialWoun
       }
     } catch (err) {
       console.warn('Failed to load wounds list:', err);
+    }
+  };
+
+  const resetImageState = () => {
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setQualityMetrics(null);
+    setValidationState(null);
+    setValidationMessage('');
+    setSubmissionResult(null);
+  };
+
+  const validateChosenFile = async (file, currentReqToken) => {
+    setValidationState('VALIDATING');
+    setValidationMessage('Checking for a visible wound…');
+
+    try {
+      const res = await woundService.validateWound(file);
+      if (reqTokenRef.current !== currentReqToken) return; // Discard stale responses
+
+      if (res && res.outcome === 'WOUND_DETECTED') {
+        setValidationState('WOUND_DETECTED');
+        setValidationMessage('Wound identified successfully.');
+      } else if (res && res.outcome === 'NON_WOUND') {
+        setValidationState('NON_WOUND');
+        setValidationMessage(res.message || 'We couldn’t identify a visible wound in this photo. Please upload a wound photo.');
+      } else if (res && res.outcome === 'UNCERTAIN') {
+        setValidationState('UNCERTAIN');
+        setValidationMessage(res.message || 'We can’t confirm a wound from this photo. Please try another photo with the area more visible.');
+      } else {
+        setValidationState('SERVICE_FAILURE');
+        setValidationMessage(res?.message || 'We couldn’t check this image right now. Please try again.');
+      }
+    } catch (err) {
+      if (reqTokenRef.current !== currentReqToken) return;
+      setValidationState('SERVICE_FAILURE');
+      setValidationMessage('We couldn’t check this image right now. Please try again.');
     }
   };
 
@@ -64,10 +106,7 @@ export default function UploadPage({ onNavigate, onShowNotification, initialWoun
       tooBright = meanLum > 220;
 
       skinRes = calculateSkinToneCoverage(imgData, canvas.width, canvas.height);
-      console.log(`[UploadPage Quality Check] Skin coverage: ${skinRes.skinPercentage}% | Pass: ${skinRes.isSkinLikely}`);
-    } catch (e) {
-      // Ignored if cross-origin
-    }
+    } catch (e) {}
 
     const resolutionOk = Math.max(origW, origH) >= 480;
     const lightingOk = !tooDark && !tooBright;
@@ -92,6 +131,10 @@ export default function UploadPage({ onNavigate, onShowNotification, initialWoun
       return;
     }
 
+    // Requirement 5: Clear previous results immediately when a new image is selected
+    resetImageState();
+
+    const currentReqToken = ++reqTokenRef.current;
     setSelectedFile(file);
     const url = URL.createObjectURL(file);
     setPreviewUrl(url);
@@ -101,6 +144,8 @@ export default function UploadPage({ onNavigate, onShowNotification, initialWoun
       processImageQuality(img, file);
     };
     img.src = url;
+
+    validateChosenFile(file, currentReqToken);
   };
 
   const handleDrop = (e) => {
@@ -112,6 +157,10 @@ export default function UploadPage({ onNavigate, onShowNotification, initialWoun
   };
 
   const handleCameraPhoto = (file, dataUrl) => {
+    // Requirement 5: Clear previous results immediately when a new camera photo is captured
+    resetImageState();
+
+    const currentReqToken = ++reqTokenRef.current;
     setSelectedFile(file);
     setPreviewUrl(dataUrl);
 
@@ -120,6 +169,8 @@ export default function UploadPage({ onNavigate, onShowNotification, initialWoun
       processImageQuality(img, file);
     };
     img.src = dataUrl;
+
+    validateChosenFile(file, currentReqToken);
   };
 
   const handleProceedToSymptoms = async () => {
@@ -392,50 +443,31 @@ export default function UploadPage({ onNavigate, onShowNotification, initialWoun
                 {/* Quality Check Indicator */}
                 <QualityCheckPanel qualityMetrics={qualityMetrics} />
 
-                {/* Low Skin Coverage Warning Banner */}
-                {qualityMetrics && qualityMetrics.skinCoverageOk === false && !proceedAnyway && (
+                {/* Requirement 1, 2, 5: Visual Wound Validation Banner */}
+                {validationState && (
                   <div style={{
                     padding: '14px 16px',
-                    background: '#FFFBEB',
-                    border: '1.5px solid #F59E0B',
+                    background: validationState === 'WOUND_DETECTED' ? '#ECFDF5' : (validationState === 'VALIDATING' ? '#F0F9FF' : '#FEF2F2'),
+                    border: `1.5px solid ${validationState === 'WOUND_DETECTED' ? '#10B981' : (validationState === 'VALIDATING' ? '#0EA5E9' : '#EF4444')}`,
                     borderRadius: '12px',
-                    color: '#92400E',
-                    fontSize: '13px',
+                    color: validationState === 'WOUND_DETECTED' ? '#065F46' : (validationState === 'VALIDATING' ? '#075985' : '#991B1B'),
+                    fontSize: '13.5px',
                     marginTop: '16px',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '12px',
-                    boxShadow: '0 2px 8px rgba(245, 158, 11, 0.12)'
+                    gap: '12px'
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                      <span style={{ fontSize: '18px', lineHeight: 1 }}>⚠️</span>
-                      <div>
-                        <strong style={{ color: '#92400E', fontSize: '13.5px' }}>Photo Content Advisory ({qualityMetrics.skinPercentage}% skin coverage):</strong>
-                        <div style={{ marginTop: 2, fontSize: '12.5px', color: '#B45309', lineHeight: 1.4 }}>
-                          This photo doesn't look like it shows skin or a wound. Please check the photo, or confirm you'd like to proceed anyway.
-                        </div>
-                      </div>
+                    <span style={{ fontSize: '18px', lineHeight: 1 }}>
+                      {validationState === 'VALIDATING' ? '🔍' : (validationState === 'WOUND_DETECTED' ? '✓' : '⚠️')}
+                    </span>
+                    <div style={{ flex: 1, fontWeight: 600 }}>
+                      {validationMessage || (
+                        validationState === 'VALIDATING' ? 'Checking for a visible wound…' :
+                        validationState === 'NON_WOUND' ? 'We couldn’t identify a visible wound in this photo. Please upload a wound photo.' :
+                        validationState === 'UNCERTAIN' ? 'We can’t confirm a wound from this photo. Please try another photo with the area more visible.' :
+                        'We couldn’t check this image right now. Please try again.'
+                      )}
                     </div>
-                    <button
-                      type="button"
-                      className="btn-outline"
-                      onClick={() => setProceedAnyway(true)}
-                      style={{
-                        background: '#FFFFFF',
-                        borderColor: '#F59E0B',
-                        color: '#B45309',
-                        fontWeight: 700,
-                        whiteSpace: 'nowrap',
-                        padding: '8px 16px',
-                        fontSize: '12.5px',
-                        cursor: 'pointer',
-                        borderRadius: '8px',
-                        flexShrink: 0
-                      }}
-                    >
-                      Proceed anyway
-                    </button>
                   </div>
                 )}
               </div>
@@ -510,9 +542,16 @@ export default function UploadPage({ onNavigate, onShowNotification, initialWoun
                 <button 
                   type="button" 
                   className="btn-primary" 
-                  disabled={isSubmitting || !selectedFile}
+                  disabled={isSubmitting || !selectedFile || validationState !== 'WOUND_DETECTED'}
                   onClick={handleProceedToSymptoms}
-                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: (isSubmitting || !selectedFile || validationState !== 'WOUND_DETECTED') ? 0.55 : 1,
+                    cursor: (isSubmitting || !selectedFile || validationState !== 'WOUND_DETECTED') ? 'not-allowed' : 'pointer'
+                  }}
                 >
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 10 }}>
                     <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" strokeLinecap="round" strokeLinejoin="round"/>

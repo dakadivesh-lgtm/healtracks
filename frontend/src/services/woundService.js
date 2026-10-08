@@ -16,6 +16,25 @@ export const woundService = {
     return res.data;
   },
 
+  async validateWound(file) {
+    const formData = new FormData();
+    formData.append('image', file);
+    try {
+      const res = await request('/wounds/validate', {
+        method: 'POST',
+        body: formData
+      });
+      return res;
+    } catch (err) {
+      if (err.data) return err.data;
+      return {
+        success: false,
+        outcome: 'SERVICE_FAILURE',
+        message: 'We couldn’t check this image right now. Please try again.'
+      };
+    }
+  },
+
   async uploadWound({ file, woundId, title, location, notes, isFollowup, qualityMetrics }) {
     const formData = new FormData();
     formData.append('image', file);
