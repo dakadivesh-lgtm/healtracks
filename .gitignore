@@ -20,4 +20,5 @@ backend/database/local_store.json
 scratch/
 
 # Logs
-*.log
+*.log/backend/.env
+/backend/.env.*
