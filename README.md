@@ -224,6 +224,15 @@ A default patient profile is seeded automatically for instant testing:
 - **Password:** `woundwise123`
 - *Or click the **"👤 Sign in as Demo Patient (Divesh Reddy)"** button on the login screen.*
 
+#### 💡 Seeding Demo Data (On Demand)
+
+To seed a realistic demo wound case with Day 1 baseline and Day 3 follow-up progression data (area reduction, symptom changes, and longitudinal healing verdict) for the demo account:
+
+```bash
+node backend/scripts/seedDemoData.js
+```
+*(Note: This script is executed manually on demand and is idempotent — running it multiple times will not create duplicate entries).*
+
 ---
 
 ## 📡 API Documentation
