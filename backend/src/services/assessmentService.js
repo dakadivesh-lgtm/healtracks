@@ -1,3 +1,4 @@
+const fs = require('fs');
 const config = require('../config');
 
 /**
@@ -8,6 +9,72 @@ const config = require('../config');
  */
 class AssessmentService {
   /**
+   * Calculate skin/wound pixel coverage using YCbCr & HSV color-space ranges.
+   * This is a simple, explainable heuristic check.
+   */
+  calculateSkinCoverage(imagePath, qualityMetrics) {
+    if (qualityMetrics && typeof qualityMetrics.skinPercentage === 'number') {
+      const skinPercentage = Math.round(qualityMetrics.skinPercentage);
+      const isSkinLikely = skinPercentage >= 12;
+      return { skinPercentage, isSkinLikely };
+    }
+
+    try {
+      if (imagePath && fs.existsSync(imagePath)) {
+        const buffer = fs.readFileSync(imagePath);
+        let skinCount = 0;
+        let sampleCount = 0;
+
+        // Sample up to 1000 byte triplets across buffer
+        const step = Math.max(3, Math.floor(buffer.length / 3000));
+        for (let i = 0; i < buffer.length - 3; i += step) {
+          const r = buffer[i];
+          const g = buffer[i + 1];
+          const b = buffer[i + 2];
+
+          const y  =  0.299  * r + 0.587  * g + 0.114  * b;
+          const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5    * b;
+          const cr = 128 + 0.5      * r - 0.418688 * g - 0.081312 * b;
+
+          const rN = r / 255, gN = g / 255, bN = b / 255;
+          const maxC = Math.max(rN, gN, bN);
+          const minC = Math.min(rN, gN, bN);
+          const diff = maxC - minC;
+
+          let hDeg = 0;
+          if (diff > 0) {
+            if (maxC === rN) hDeg = 60 * (((gN - bN) / diff) % 6);
+            else if (maxC === gN) hDeg = 60 * (((bN - rN) / diff) + 2);
+            else hDeg = 60 * (((rN - gN) / diff) + 4);
+          }
+          if (hDeg < 0) hDeg += 360;
+
+          const sat = maxC === 0 ? 0 : diff / maxC;
+          const val = maxC;
+
+          const isYCbCrSkin = (cb >= 77 && cb <= 127) && (cr >= 133 && cr <= 173) && (y >= 15);
+          const isHSVSkin = ((hDeg >= 0 && hDeg <= 50) || (hDeg >= 330 && hDeg <= 360)) &&
+                            (sat >= 0.10 && sat <= 0.85) &&
+                            (val >= 0.15 && val <= 0.98);
+
+          sampleCount++;
+          if (isYCbCrSkin || isHSVSkin) skinCount++;
+        }
+
+        if (sampleCount > 0) {
+          const skinPercentage = Math.round((skinCount / sampleCount) * 100);
+          const isSkinLikely = skinPercentage >= 12;
+          return { skinPercentage, isSkinLikely };
+        }
+      }
+    } catch (err) {
+      console.warn('[AssessmentService] Skin coverage calculation error:', err.message);
+    }
+
+    return { skinPercentage: 100, isSkinLikely: true };
+  }
+
+  /**
    * Run assessment on a wound entry image
    * @param {Object} params
    * @param {string} params.imagePath - Server path to stored image
@@ -16,6 +83,10 @@ class AssessmentService {
    * @returns {Promise<Object>} Assessment outcome
    */
   async assessWound({ imagePath, notes, qualityMetrics }) {
+    // SECTION 2: Apply skin-content heuristic pre-check prior to AI analysis, independent of Gemini
+    const skinCoverage = this.calculateSkinCoverage(imagePath, qualityMetrics);
+    console.log(`[Backend Quality Pre-Check] Skin coverage: ${skinCoverage.skinPercentage}% | Pass: ${skinCoverage.isSkinLikely}`);
+
     // If external AI model is not configured with a valid API key
     if (!config.ai.isEnabled) {
       return {
@@ -28,7 +99,10 @@ class AssessmentService {
           trackingActive: true,
           clinicalNote: 'Wound documentation and progression tracking remain active. Please consult a qualified medical professional for clinical wound assessment and diagnosis.',
           recordedNotes: notes || '',
-          qualityChecked: Boolean(qualityMetrics)
+          qualityChecked: Boolean(qualityMetrics),
+          skinCoveragePct: skinCoverage.skinPercentage,
+          isSkinLikely: skinCoverage.isSkinLikely,
+          skinWarning: skinCoverage.isSkinLikely ? null : "This photo doesn't look like it shows skin or a wound. Please check the photo, or confirm you'd like to proceed anyway."
         }
       };
     }

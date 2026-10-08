@@ -50,6 +50,17 @@ export default function QualityCheckPanel({ qualityMetrics }) {
               : 'Photo quality check pending'}
           </span>
         </div>
+
+        <div className="quality-item">
+          <span>🖐️ Skin &amp; Wound Content:</span>
+          <span className={qualityMetrics.skinCoverageOk !== false ? 'quality-icon--ok' : 'quality-icon--warn'}>
+            {qualityMetrics.skinPercentage != null
+              ? (qualityMetrics.skinCoverageOk !== false 
+                ? `✓ Content verified (${qualityMetrics.skinPercentage}%)`
+                : `⚠ Low skin coverage (${qualityMetrics.skinPercentage}%)`)
+              : 'Photo quality check pending'}
+          </span>
+        </div>
       </div>
     </div>
   );

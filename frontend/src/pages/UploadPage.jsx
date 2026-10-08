@@ -2,12 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import CameraModal from '../components/CameraModal';
 import QualityCheckPanel from '../components/QualityCheckPanel';
 import { woundService } from '../services/woundService';
+import { calculateSkinToneCoverage } from '../utils/measurementEngine';
 
 export default function UploadPage({ onNavigate, onShowNotification, initialWoundId }) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [qualityMetrics, setQualityMetrics] = useState(null);
+  const [proceedAnyway, setProceedAnyway] = useState(false);
   const [dragOver, setDragOver] = useState(false);
 
   // Form State
@@ -51,6 +53,7 @@ export default function UploadPage({ onNavigate, onShowNotification, initialWoun
     let lumSum = 0;
     let tooDark = false;
     let tooBright = false;
+    let skinRes = { skinPercentage: 0, isSkinLikely: true };
     try {
       const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
       for (let i = 0; i < imgData.length; i += 8) {
@@ -59,6 +62,9 @@ export default function UploadPage({ onNavigate, onShowNotification, initialWoun
       const meanLum = lumSum / (imgData.length / 8);
       tooDark = meanLum < 40;
       tooBright = meanLum > 220;
+
+      skinRes = calculateSkinToneCoverage(imgData, canvas.width, canvas.height);
+      console.log(`[UploadPage Quality Check] Skin coverage: ${skinRes.skinPercentage}% | Pass: ${skinRes.isSkinLikely}`);
     } catch (e) {
       // Ignored if cross-origin
     }
@@ -73,7 +79,9 @@ export default function UploadPage({ onNavigate, onShowNotification, initialWoun
       sharp: true,
       lightingOk,
       tooDark,
-      tooBright
+      tooBright,
+      skinPercentage: skinRes.skinPercentage,
+      skinCoverageOk: skinRes.isSkinLikely
     });
   };
 
@@ -383,6 +391,53 @@ export default function UploadPage({ onNavigate, onShowNotification, initialWoun
 
                 {/* Quality Check Indicator */}
                 <QualityCheckPanel qualityMetrics={qualityMetrics} />
+
+                {/* Low Skin Coverage Warning Banner */}
+                {qualityMetrics && qualityMetrics.skinCoverageOk === false && !proceedAnyway && (
+                  <div style={{
+                    padding: '14px 16px',
+                    background: '#FFFBEB',
+                    border: '1.5px solid #F59E0B',
+                    borderRadius: '12px',
+                    color: '#92400E',
+                    fontSize: '13px',
+                    marginTop: '16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '12px',
+                    boxShadow: '0 2px 8px rgba(245, 158, 11, 0.12)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                      <span style={{ fontSize: '18px', lineHeight: 1 }}>⚠️</span>
+                      <div>
+                        <strong style={{ color: '#92400E', fontSize: '13.5px' }}>Photo Content Advisory ({qualityMetrics.skinPercentage}% skin coverage):</strong>
+                        <div style={{ marginTop: 2, fontSize: '12.5px', color: '#B45309', lineHeight: 1.4 }}>
+                          This photo doesn't look like it shows skin or a wound. Please check the photo, or confirm you'd like to proceed anyway.
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn-outline"
+                      onClick={() => setProceedAnyway(true)}
+                      style={{
+                        background: '#FFFFFF',
+                        borderColor: '#F59E0B',
+                        color: '#B45309',
+                        fontWeight: 700,
+                        whiteSpace: 'nowrap',
+                        padding: '8px 16px',
+                        fontSize: '12.5px',
+                        cursor: 'pointer',
+                        borderRadius: '8px',
+                        flexShrink: 0
+                      }}
+                    >
+                      Proceed anyway
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 

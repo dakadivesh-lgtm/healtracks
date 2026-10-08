@@ -16,10 +16,11 @@ let imageAccepted   = false;
 let btnCaptureCamera, cameraModal, videoFeed, btnCloseCamera,
     btnTakePhoto, canvas, uploadCard, btnSwitchCamera,
     feedbackBadge, statusPanel, statusResolution,
-    statusSharpness, statusLighting, statusSummary,
+    statusSharpness, statusLighting, statusSkin, statusSummary,
     uploadSection, resultSection, btnRetake, btnChooseAnother,
     btnUsePhoto, resultImg, resultError, btnAnalyze, btnFileFallback,
-    woundFileInput, woundCameraInput, uploadDropzone;
+    woundFileInput, woundCameraInput, uploadDropzone,
+    lowSkinWarning, btnProceedSkinWarning;
 
 // ── Accepted Image Data URL & Dimensions ───────────────────────
 let acceptedDataUrl = null;
@@ -86,18 +87,61 @@ function analyseQuality(sourceCanvas) {
     const data = d.data;
 
     let lumSum = 0;
-    for (let i = 0; i < data.length; i += 4) {
-      lumSum += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-    }
-    const meanLum = lumSum / (data.length / 4);
+    let skinCount = 0;
+    const totalPixels = data.length / 4;
 
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+
+      lumSum += 0.299 * r + 0.587 * g + 0.114 * b;
+
+      // YCbCr check
+      const y  =  0.299  * r + 0.587  * g + 0.114  * b;
+      const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5    * b;
+      const cr = 128 + 0.5      * r - 0.418688 * g - 0.081312 * b;
+
+      // HSV check
+      const rN = r / 255, gN = g / 255, bN = b / 255;
+      const maxC = Math.max(rN, gN, bN);
+      const minC = Math.min(rN, gN, bN);
+      const diff = maxC - minC;
+
+      let hDeg = 0;
+      if (diff > 0) {
+        if (maxC === rN) hDeg = 60 * (((gN - bN) / diff) % 6);
+        else if (maxC === gN) hDeg = 60 * (((bN - rN) / diff) + 2);
+        else hDeg = 60 * (((rN - gN) / diff) + 4);
+      }
+      if (hDeg < 0) hDeg += 360;
+
+      const sat = maxC === 0 ? 0 : diff / maxC;
+      const val = maxC;
+
+      const isYCbCrSkin = (cb >= 77 && cb <= 127) && (cr >= 133 && cr <= 173) && (y >= 15);
+      const isHSVSkin = ((hDeg >= 0 && hDeg <= 50) || (hDeg >= 330 && hDeg <= 360)) &&
+                        (sat >= 0.10 && sat <= 0.85) &&
+                        (val >= 0.15 && val <= 0.98);
+
+      if (isYCbCrSkin || isHSVSkin) {
+        skinCount++;
+      }
+    }
+
+    const meanLum = lumSum / totalPixels;
     const tooD = meanLum < DARK_THRESHOLD;
     const tooB = meanLum > BRIGHT_THRESHOLD;
     const lit  = !tooD && !tooB;
 
-    return { sharp: true, lit, tooD, tooB };
+    const skinPercentage = Math.round((skinCount / totalPixels) * 100);
+    const isSkinLikely = skinPercentage >= 12;
+
+    console.log(`[upload.js Quality Check] Skin tone coverage: ${skinPercentage}% | Pass: ${isSkinLikely}`);
+
+    return { sharp: true, lit, tooD, tooB, skinPercentage, isSkinLikely };
   } catch (e) {
-    return { sharp: true, lit: true, tooD: false, tooB: false };
+    return { sharp: true, lit: true, tooD: false, tooB: false, skinPercentage: 100, isSkinLikely: true };
   }
 }
 
@@ -137,6 +181,16 @@ function showStatusPanel(w, h, origW, origH, quality) {
     quality.lit ? 'ok' : 'fail',
     quality.lit ? 'Acceptable' : quality.tooD ? 'Dim lighting' : 'High glare'
   );
+
+  setStatusRow(
+    statusSkin,
+    quality.isSkinLikely ? 'ok' : 'fail',
+    quality.isSkinLikely ? `${quality.skinPercentage}% coverage (Skin/Wound detected)` : `${quality.skinPercentage}% coverage (Low skin tone detected)`
+  );
+
+  if (lowSkinWarning) {
+    lowSkinWarning.style.display = quality.isSkinLikely ? 'none' : 'block';
+  }
 }
 
 function resetStatusPanel() {
@@ -145,6 +199,8 @@ function resetStatusPanel() {
   setStatusRow(statusResolution, 'pending', 'Checking…');
   setStatusRow(statusSharpness,  'pending', 'Checking…');
   setStatusRow(statusLighting,   'pending', 'Checking…');
+  setStatusRow(statusSkin,       'pending', 'Checking…');
+  if (lowSkinWarning) lowSkinWarning.style.display = 'none';
   if (statusSummary) {
     statusSummary.textContent = '';
     statusSummary.dataset.state = '';
@@ -454,7 +510,10 @@ document.addEventListener('DOMContentLoaded', () => {
   statusResolution  = document.getElementById('sq-resolution');
   statusSharpness   = document.getElementById('sq-sharpness');
   statusLighting    = document.getElementById('sq-lighting');
+  statusSkin        = document.getElementById('sq-skin');
   statusSummary     = document.getElementById('sq-summary');
+  lowSkinWarning    = document.getElementById('low-skin-warning');
+  btnProceedSkinWarning = document.getElementById('btn-proceed-skin-warning');
   uploadSection     = document.getElementById('upload-section');
   resultSection     = document.getElementById('result-section');
   resultImg         = document.getElementById('result-img');
@@ -462,6 +521,13 @@ document.addEventListener('DOMContentLoaded', () => {
   btnRetake         = document.getElementById('btn-retake');
   btnChooseAnother  = document.getElementById('btn-choose-another');
   btnUsePhoto       = document.getElementById('btn-use-photo');
+
+  if (btnProceedSkinWarning) {
+    btnProceedSkinWarning.addEventListener('click', () => {
+      if (lowSkinWarning) lowSkinWarning.style.display = 'none';
+      markAccepted();
+    });
+  }
   btnAnalyze        = document.getElementById('btn-analyze');
   btnFileFallback   = document.getElementById('btn-file-fallback');
   woundFileInput    = document.getElementById('wound-file-input');

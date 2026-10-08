@@ -313,3 +313,72 @@ export function legacyNaiveRedness(r, g, b) {
   }
   return false;
 }
+
+// 9. Skin Tone Color-Space Pre-Check Heuristic (HSV + YCbCr)
+export function calculateSkinToneCoverage(rgbBuffer, width, height) {
+  let skinPixels = 0;
+  const totalPixels = width * height;
+
+  if (!totalPixels || totalPixels === 0 || !rgbBuffer) {
+    return { skinPixels: 0, totalPixels: 0, skinRatio: 0, skinPercentage: 0, isSkinLikely: false };
+  }
+
+  for (let i = 0; i < rgbBuffer.length; i += 4) {
+    const r = rgbBuffer[i];
+    const g = rgbBuffer[i + 1];
+    const b = rgbBuffer[i + 2];
+
+    // Specular highlight / extreme dark shadow filter
+    if ((r > 245 && g > 245 && b > 245) || (r < 15 && g < 15 && b < 15)) {
+      continue;
+    }
+
+    // 1. YCbCr Transformation
+    const y  = 0.299 * r + 0.587 * g + 0.114 * b;
+    const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
+    const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
+
+    const isYCbCrSkin = (cb >= 77 && cb <= 127) && (cr >= 133 && cr <= 173) && (y >= 15);
+
+    // 2. HSV Transformation
+    const rN = r / 255, gN = g / 255, bN = b / 255;
+    const max = Math.max(rN, gN, bN);
+    const min = Math.min(rN, gN, bN);
+    const delta = max - min;
+
+    let h = 0;
+    if (delta !== 0) {
+      if (max === rN) h = ((gN - bN) / delta) % 6;
+      else if (max === gN) h = (bN - rN) / delta + 2;
+      else h = (rN - gN) / delta + 4;
+      h = Math.round(h * 60);
+      if (h < 0) h += 360;
+    }
+    const s = max === 0 ? 0 : delta / max;
+    const v = max;
+
+    const isHsvSkin = ((h >= 0 && h <= 50) || (h >= 330 && h <= 360)) && (s >= 0.10 && s <= 0.85) && (v >= 0.15 && v <= 0.98);
+
+    // 3. Chrominance condition: Red component prominent & distinct from Blue/Green
+    const isRgbSkin = (r > b) && (delta * 255 >= 10);
+
+    if ((isYCbCrSkin || isHsvSkin) && isRgbSkin) {
+      skinPixels++;
+    }
+  }
+
+  const skinRatio = skinPixels / totalPixels;
+  const skinPercentage = Math.round(skinRatio * 1000) / 10;
+  const isSkinLikely = skinPercentage >= 12.0;
+
+  console.log(`[Skin Tone Check] Skin coverage: ${skinPercentage}% (${skinPixels}/${totalPixels} pixels) | Threshold (12.0%): ${isSkinLikely ? 'PASS' : 'LOW_COVERAGE_WARNING'}`);
+
+  return {
+    skinPixels,
+    totalPixels,
+    skinRatio,
+    skinPercentage,
+    isSkinLikely
+  };
+}
+

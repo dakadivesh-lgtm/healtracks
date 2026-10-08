@@ -309,7 +309,26 @@
             <span class="sq-icon sq-icon--pending">…</span>
             <span class="sq-text">Checking…</span>
           </div>
+          <div class="sq-row" id="sq-skin">
+            <span class="sq-label">🖐️ Skin & Wound Content</span>
+            <span class="sq-icon sq-icon--pending">…</span>
+            <span class="sq-text">Checking…</span>
+          </div>
           <div id="sq-summary" class="sq-summary"></div>
+        </div>
+
+        <!-- ── Low Skin Warning Banner ── -->
+        <div id="low-skin-warning" style="display: none; max-width: 820px; width: 100%; margin: 16px auto 0; background: #FFFBEB; border: 1px solid #FCD34D; border-radius: 8px; padding: 14px 18px; color: #92400E;">
+          <div style="display: flex; align-items: flex-start; gap: 12px;">
+            <span style="font-size: 20px; line-height: 1;">⚠️</span>
+            <div style="flex: 1;">
+              <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">Photo Content Warning</div>
+              <div style="font-size: 13px; line-height: 1.4;">This photo doesn't look like it shows skin or a wound. Please check the photo, or confirm you'd like to proceed anyway.</div>
+              <div style="margin-top: 10px;">
+                <button id="btn-proceed-skin-warning" class="btn-outline" style="background: #FFFFFF; border-color: #F59E0B; color: #92400E; font-size: 13px; padding: 6px 14px;">Proceed anyway</button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- ── Analyze Button ── -->
