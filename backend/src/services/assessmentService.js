@@ -129,9 +129,9 @@ class AssessmentService {
   }
 
   /**
-   * Safe resilient multi-model caller for Gemini API
+   * Resilient multi-model caller for Gemini API with 45s request timeout and bounded exponential backoff.
    */
-  async callGeminiApi({ prompt, base64Data, mimeType, responseJson = true }) {
+  async callGeminiApi({ prompt, base64Data, mimeType, responseJson = true, timeoutMs = 45000 }) {
     if (!config.ai.isEnabled) return null;
 
     const candidateModels = Array.from(new Set([
@@ -140,43 +140,64 @@ class AssessmentService {
       'gemini-3.8-flash'
     ])).filter(Boolean);
 
+    const maxRetriesPerModel = 2;
+
     for (const model of candidateModels) {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000);
+      for (let attempt = 1; attempt <= maxRetriesPerModel; attempt++) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${config.ai.apiKey}`;
-        const requestBody = {
-          contents: [
-            {
-              parts: [
-                ...(base64Data ? [{ inline_data: { mime_type: mimeType || 'image/jpeg', data: base64Data } }] : []),
-                { text: prompt }
-              ]
-            }
-          ]
-        };
-        if (responseJson) {
-          requestBody.generationConfig = { temperature: 0.1, response_mime_type: 'application/json' };
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${config.ai.apiKey}`;
+          const requestBody = {
+            contents: [
+              {
+                parts: [
+                  ...(base64Data ? [{ inline_data: { mime_type: mimeType || 'image/jpeg', data: base64Data } }] : []),
+                  { text: prompt }
+                ]
+              }
+            ]
+          };
+          if (responseJson) {
+            requestBody.generationConfig = { temperature: 0.1, response_mime_type: 'application/json' };
+          }
+
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: controller.signal,
+            body: JSON.stringify(requestBody)
+          });
+          clearTimeout(timeoutId);
+
+          if (response.ok) {
+            const data = await response.json();
+            const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            return { ok: true, rawText, model, status: response.status };
+          }
+
+          const status = response.status;
+          console.warn(`[Gemini API] Model ${model} Attempt ${attempt} returned HTTP ${status} ${response.statusText}`);
+
+          // Retry on temporary capacity (503) or rate limit (429) errors with backoff
+          if ((status === 503 || status === 429) && attempt < maxRetriesPerModel) {
+            const backoffMs = attempt * 1500;
+            console.log(`[Gemini API Backoff] Waiting ${backoffMs}ms before retrying ${model}...`);
+            await new Promise(r => setTimeout(r, backoffMs));
+            continue;
+          }
+          // If 404 or non-retriable error, break retry loop to try next candidate model
+          break;
+        } catch (err) {
+          console.warn(`[Gemini API Error] Model ${model} Attempt ${attempt} failed: ${err.message}`);
+          if (attempt < maxRetriesPerModel) {
+            const backoffMs = attempt * 1500;
+            console.log(`[Gemini API Backoff] Retrying ${model} in ${backoffMs}ms...`);
+            await new Promise(r => setTimeout(r, backoffMs));
+            continue;
+          }
         }
-
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          signal: controller.signal,
-          body: JSON.stringify(requestBody)
-        });
-        clearTimeout(timeoutId);
-
-        if (response.ok) {
-          const data = await response.json();
-          const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-          return { ok: true, rawText, model };
-        } else {
-          console.warn(`[Gemini API] Model ${model} returned HTTP ${response.status}. Retrying with next model...`);
-        }
-      } catch (err) {
-        console.warn(`[Gemini API Error] Model ${model} failed: ${err.message}. Retrying...`);
       }
     }
 
@@ -252,7 +273,8 @@ Respond ONLY with a valid JSON object in this exact format (no markdown, no pros
         prompt: validationPrompt,
         base64Data,
         mimeType,
-        responseJson: true
+        responseJson: true,
+        timeoutMs: 45000 // 45s request timeout
       });
 
       if (apiResult && apiResult.ok && apiResult.rawText) {
@@ -281,7 +303,8 @@ Respond ONLY with a valid JSON object in this exact format (no markdown, no pros
             detectedWoundType: parsed.detectedWoundType || null,
             confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 0.85,
             provider: 'gemini',
-            model: apiResult.model
+            model: apiResult.model,
+            status: apiResult.status
           };
         }
       }
@@ -296,7 +319,7 @@ Respond ONLY with a valid JSON object in this exact format (no markdown, no pros
       };
     }
 
-    // Unconfigured or failed AI service in production
+    // Unconfigured or failed AI service in production: STOPS ANALYSIS (never allows upload or analysis)
     return {
       outcome: 'SERVICE_FAILURE',
       message: 'We couldn’t check this image right now. Please try again.',
@@ -353,7 +376,8 @@ User note: "${notes || 'None'}"`;
         prompt,
         base64Data,
         mimeType: 'image/jpeg',
-        responseJson: false
+        responseJson: false,
+        timeoutMs: 45000
       });
 
       if (apiResult && apiResult.ok && apiResult.rawText) {
