@@ -7,7 +7,7 @@ const sharp = require('sharp');
 
 /**
  * AI Assessment Service
- * Provides multimodal visual validation and AI-powered wound assessment.
+ * Provides multimodal visual validation and AI-powered wound assessment using Google Gemini.
  */
 class AssessmentService {
   /**
@@ -129,6 +129,61 @@ class AssessmentService {
   }
 
   /**
+   * Safe resilient multi-model caller for Gemini API
+   */
+  async callGeminiApi({ prompt, base64Data, mimeType, responseJson = true }) {
+    if (!config.ai.isEnabled) return null;
+
+    const candidateModels = Array.from(new Set([
+      config.ai.modelName,
+      'gemini-3.5-flash',
+      'gemini-3.8-flash'
+    ])).filter(Boolean);
+
+    for (const model of candidateModels) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${config.ai.apiKey}`;
+        const requestBody = {
+          contents: [
+            {
+              parts: [
+                ...(base64Data ? [{ inline_data: { mime_type: mimeType || 'image/jpeg', data: base64Data } }] : []),
+                { text: prompt }
+              ]
+            }
+          ]
+        };
+        if (responseJson) {
+          requestBody.generationConfig = { temperature: 0.1, response_mime_type: 'application/json' };
+        }
+
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
+          body: JSON.stringify(requestBody)
+        });
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          const data = await response.json();
+          const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          return { ok: true, rawText, model };
+        } else {
+          console.warn(`[Gemini API] Model ${model} returned HTTP ${response.status}. Retrying with next model...`);
+        }
+      } catch (err) {
+        console.warn(`[Gemini API Error] Model ${model} failed: ${err.message}. Retrying...`);
+      }
+    }
+
+    return null;
+  }
+
+  /**
    * Perform visual content validation to determine if a supported wound is visible.
    * NOTE: Filenames are NEVER inspected or used for decision making.
    */
@@ -172,9 +227,8 @@ class AssessmentService {
 
     // 2. Multimodal AI Visual Validation
     if (config.ai.isEnabled) {
-      try {
-        const base64Data = buffer.toString('base64');
-        const validationPrompt = `You are a strict visual triage validator for a medical wound care application.
+      const base64Data = buffer.toString('base64');
+      const validationPrompt = `You are a strict visual triage validator for a medical wound care application.
 Analyze the VISUAL PIXEL CONTENT of the provided image to determine if a supported physical wound on human skin is visibly present.
 
 SUPPORTED WOUND CATEGORIES:
@@ -194,75 +248,42 @@ Respond ONLY with a valid JSON object in this exact format (no markdown, no pros
   "confidence": 0.85
 }`;
 
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 12000);
+      const apiResult = await this.callGeminiApi({
+        prompt: validationPrompt,
+        base64Data,
+        mimeType,
+        responseJson: true
+      });
 
-        const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${config.ai.modelName}:generateContent?key=${config.ai.apiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            signal: controller.signal,
-            body: JSON.stringify({
-              contents: [
-                {
-                  parts: [
-                    {
-                      inline_data: {
-                        mime_type: mimeType,
-                        data: base64Data
-                      }
-                    },
-                    {
-                      text: validationPrompt
-                    }
-                  ]
-                }
-              ],
-              generationConfig: {
-                temperature: 0.1,
-                response_mime_type: 'application/json'
-              }
-            })
-          }
-        );
-        clearTimeout(timeoutId);
-
-        if (response.ok) {
-          const data = await response.json();
-          const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-          
-          let parsed = null;
-          try {
-            const cleanText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
-            parsed = JSON.parse(cleanText);
-          } catch (e) {
-            parsed = null;
-          }
-
-          if (parsed && ['WOUND_DETECTED', 'NON_WOUND', 'UNCERTAIN'].includes(parsed.outcome)) {
-            let message = '';
-            if (parsed.outcome === 'WOUND_DETECTED') {
-              message = 'Wound identified successfully.';
-            } else if (parsed.outcome === 'NON_WOUND') {
-              message = 'We couldn’t identify a visible wound in this photo. Please upload a wound photo.';
-            } else {
-              message = 'We can’t confirm a wound from this photo. Please try another photo with the area more visible.';
-            }
-
-            return {
-              outcome: parsed.outcome,
-              message,
-              reason: parsed.reason || 'Visual analysis completed.',
-              detectedWoundType: parsed.detectedWoundType || null,
-              confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 0.85,
-              provider: 'gemini',
-              model: config.ai.modelName
-            };
-          }
+      if (apiResult && apiResult.ok && apiResult.rawText) {
+        let parsed = null;
+        try {
+          const cleanText = apiResult.rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+          parsed = JSON.parse(cleanText);
+        } catch (e) {
+          parsed = null;
         }
-      } catch (err) {
-        console.error('[Validation AI Error]:', err.message);
+
+        if (parsed && ['WOUND_DETECTED', 'NON_WOUND', 'UNCERTAIN'].includes(parsed.outcome)) {
+          let message = '';
+          if (parsed.outcome === 'WOUND_DETECTED') {
+            message = 'Wound identified successfully.';
+          } else if (parsed.outcome === 'NON_WOUND') {
+            message = 'We couldn’t identify a visible wound in this photo. Please upload a wound photo.';
+          } else {
+            message = 'We can’t confirm a wound from this photo. Please try another photo with the area more visible.';
+          }
+
+          return {
+            outcome: parsed.outcome,
+            message,
+            reason: parsed.reason || 'Visual analysis completed.',
+            detectedWoundType: parsed.detectedWoundType || null,
+            confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 0.85,
+            provider: 'gemini',
+            model: apiResult.model
+          };
+        }
       }
     }
 
@@ -317,52 +338,38 @@ Respond ONLY with a valid JSON object in this exact format (no markdown, no pros
     }
 
     try {
-      console.log(`[AI Assessment] Calling configured model: ${config.ai.modelName}`);
+      console.log(`[AI Assessment] Calling configured Gemini models...`);
       let base64Data = '';
       if (imagePath && fs.existsSync(imagePath)) {
         base64Data = fs.readFileSync(imagePath).toString('base64');
       }
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${config.ai.modelName}:generateContent?key=${config.ai.apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  ...(base64Data ? [{ inline_data: { mime_type: 'image/jpeg', data: base64Data } }] : []),
-                  {
-                    text: `Analyze this confirmed wound image from an objective clinical documentation standpoint.
+      const prompt = `Analyze this confirmed wound image from an objective clinical documentation standpoint.
 DO NOT fabricate arbitrary percentages or definite medical diagnoses.
 Provide objective visible features, signs of inflammation if visible, and recommended follow-up questions for a clinician.
-User note: "${notes || 'None'}"`
-                  }
-                ]
-              }
-            ]
-          })
-        }
-      );
+User note: "${notes || 'None'}"`;
 
-      if (!response.ok) {
-        throw new Error(`AI model endpoint error: ${response.statusText}`);
+      const apiResult = await this.callGeminiApi({
+        prompt,
+        base64Data,
+        mimeType: 'image/jpeg',
+        responseJson: false
+      });
+
+      if (apiResult && apiResult.ok && apiResult.rawText) {
+        return {
+          configured: true,
+          status: 'analyzed',
+          summary: 'Preliminary AI Observation',
+          details: {
+            observations: apiResult.rawText,
+            model: apiResult.model,
+            timestamp: new Date().toISOString()
+          }
+        };
       }
 
-      const data = await response.json();
-      const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'No response returned from model.';
-
-      return {
-        configured: true,
-        status: 'analyzed',
-        summary: 'Preliminary AI Observation',
-        details: {
-          observations: rawText,
-          model: config.ai.modelName,
-          timestamp: new Date().toISOString()
-        }
-      };
+      throw new Error('All candidate Gemini models failed to return content.');
     } catch (err) {
       console.error('[AI Assessment Error]:', err.message);
       return {

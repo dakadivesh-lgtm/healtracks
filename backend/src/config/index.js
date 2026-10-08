@@ -21,10 +21,10 @@ module.exports = {
     ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : false
   },
 
-  // AI Assessment Configuration (Safe default: not configured unless explicit key provided)
+  // AI Assessment Configuration
   ai: {
     apiKey: process.env.AI_API_KEY || null,
-    modelName: process.env.AI_MODEL || 'gemini-1.5-flash',
+    modelName: process.env.AI_MODEL || 'gemini-3.5-flash',
     isEnabled: Boolean(process.env.AI_API_KEY && process.env.AI_API_KEY.trim().length > 5)
   },
 
