@@ -319,11 +319,18 @@ async function handleImageBlob(fileOrBlob) {
       } else if (outcome === 'UNCERTAIN') {
         showRejection([valData.message || 'We can’t confirm a wound from this photo. Please try another photo with the area more visible.']);
       } else {
-        showNeutralNotice('Validation status: Service currently unavailable.');
+        // Validation service unavailable: leave photo unaccepted without rendering warning box
+        if (statusSummary) {
+          statusSummary.textContent = '';
+          statusSummary.style.display = 'none';
+        }
       }
     } catch (apiErr) {
       if (thisToken !== currentValidationToken) return;
-      showNeutralNotice('Validation status: Service currently unavailable.');
+      if (statusSummary) {
+        statusSummary.textContent = '';
+        statusSummary.style.display = 'none';
+      }
     }
 
   } catch (err) {

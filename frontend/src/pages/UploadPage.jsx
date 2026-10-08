@@ -443,33 +443,29 @@ export default function UploadPage({ onNavigate, onShowNotification, initialWoun
                 {/* Quality Check Indicator */}
                 <QualityCheckPanel qualityMetrics={qualityMetrics} />
 
-                {/* Requirement 1, 2, 5: Visual Wound Validation Banner */}
-                {validationState && (
+                {/* Visual Wound Validation Banner (Hidden on SERVICE_FAILURE) */}
+                {validationState && validationState !== 'SERVICE_FAILURE' && (
                   <div style={{
-                    padding: validationState === 'SERVICE_FAILURE' ? '8px 12px' : '14px 16px',
-                    background: validationState === 'WOUND_DETECTED' ? '#ECFDF5' : (validationState === 'VALIDATING' ? '#F0F9FF' : (validationState === 'SERVICE_FAILURE' ? '#F8FAFC' : '#FEF2F2')),
-                    border: `1.5px solid ${validationState === 'WOUND_DETECTED' ? '#10B981' : (validationState === 'VALIDATING' ? '#0EA5E9' : (validationState === 'SERVICE_FAILURE' ? '#E2E8F0' : '#EF4444'))}`,
-                    borderRadius: validationState === 'SERVICE_FAILURE' ? '8px' : '12px',
-                    color: validationState === 'WOUND_DETECTED' ? '#065F46' : (validationState === 'VALIDATING' ? '#075985' : (validationState === 'SERVICE_FAILURE' ? '#64748B' : '#991B1B')),
-                    fontSize: validationState === 'SERVICE_FAILURE' ? '12px' : '13.5px',
+                    padding: '14px 16px',
+                    background: validationState === 'WOUND_DETECTED' ? '#ECFDF5' : (validationState === 'VALIDATING' ? '#F0F9FF' : '#FEF2F2'),
+                    border: `1.5px solid ${validationState === 'WOUND_DETECTED' ? '#10B981' : (validationState === 'VALIDATING' ? '#0EA5E9' : '#EF4444')}`,
+                    borderRadius: '12px',
+                    color: validationState === 'WOUND_DETECTED' ? '#065F46' : (validationState === 'VALIDATING' ? '#075985' : '#991B1B'),
+                    fontSize: '13.5px',
                     marginTop: '16px',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '12px'
                   }}>
-                    <span style={{ fontSize: validationState === 'SERVICE_FAILURE' ? '14px' : '18px', lineHeight: 1 }}>
-                      {validationState === 'VALIDATING' ? '🔍' : (validationState === 'WOUND_DETECTED' ? '✓' : (validationState === 'SERVICE_FAILURE' ? 'ℹ️' : '⚠️'))}
+                    <span style={{ fontSize: '18px', lineHeight: 1 }}>
+                      {validationState === 'VALIDATING' ? '🔍' : (validationState === 'WOUND_DETECTED' ? '✓' : '⚠️')}
                     </span>
-                    <div style={{ flex: 1, fontWeight: validationState === 'SERVICE_FAILURE' ? 500 : 600 }}>
-                      {validationState === 'SERVICE_FAILURE' ? (
-                        'Validation status: Service currently unavailable.'
-                      ) : (
-                        validationMessage || (
-                          validationState === 'VALIDATING' ? 'Checking for a visible wound…' :
-                          validationState === 'NON_WOUND' ? 'We couldn’t identify a visible wound in this photo. Please upload a wound photo.' :
-                          validationState === 'UNCERTAIN' ? 'We can’t confirm a wound from this photo. Please try another photo with the area more visible.' :
-                          'Validation status unavailable.'
-                        )
+                    <div style={{ flex: 1, fontWeight: 600 }}>
+                      {validationMessage || (
+                        validationState === 'VALIDATING' ? 'Checking for a visible wound…' :
+                        validationState === 'NON_WOUND' ? 'We couldn’t identify a visible wound in this photo. Please upload a wound photo.' :
+                        validationState === 'UNCERTAIN' ? 'We can’t confirm a wound from this photo. Please try another photo with the area more visible.' :
+                        ''
                       )}
                     </div>
                   </div>
